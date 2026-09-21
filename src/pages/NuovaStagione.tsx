@@ -194,11 +194,14 @@ export default function NuovaStagione() {
 
       if (inModifica && stagioneId) {
         await aggiornaStagione(utente.uid, stagioneId, dati);
+        navigate('/libretto');
       } else {
-        await creaStagione(utente.uid, dati);
+        const nuovaId = await creaStagione(utente.uid, dati);
         await registraEvento('stagione_creata', utente.uid);
+        // §4.1 L4, punto 5: appena salvata si passa a chiedere la conferma, perché è
+        // quello il senso di averla scritta.
+        navigate(`/stagione/${nuovaId}/conferma`);
       }
-      navigate('/libretto');
     } catch (e) {
       setErrore(messaggioErrore(e));
     } finally {

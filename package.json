@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run lint && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && tsc --noEmit -p functions",
     "test": "firebase emulators:exec --only firestore --project libretto-prova \"node --test test/*.test.mjs\"",
-    "emulatori": "firebase emulators:start",
+    "emulatori": "npm --prefix functions run build && firebase emulators:start",
     "deploy:regole": "firebase deploy --only firestore:rules,storage",
-    "deploy": "npm run build && firebase deploy --only hosting,firestore:rules,storage",
-    "prova:flusso": "node strumenti/prova-flusso.mjs"
+    "deploy": "npm run build && firebase deploy --only hosting,firestore,storage,functions",
+    "prova:flusso": "node strumenti/prova-flusso.mjs",
+    "deploy:funzioni": "firebase deploy --only functions"
   },
   "dependencies": {
     "firebase": "^12.19.0",

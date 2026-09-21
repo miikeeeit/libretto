@@ -5,17 +5,12 @@
 // PC1 (2026-09-21): durante la beta serve un codice di invito. Il codice si controlla
 // PRIMA di mandare l'SMS, perché ogni SMS costa.
 
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
-} from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useVerificaTelefono } from '../auth/useVerificaTelefono';
 import { BETA_SU_INVITO, CLAIM, NOME_APP } from '../config';
 import { messaggioErrore } from '../lib/errori';
 import { registraEvento } from '../lib/eventi';
-import { auth } from '../lib/firebase';
 import { collegaInvito, controllaInvito, invitoGiaCollegato, normalizzaCodice } from '../lib/inviti';
 import { formattaTelefono, normalizzaTelefono } from '../lib/telefono';
 
@@ -34,8 +29,7 @@ export default function Accesso() {
   const [inCorso, setInCorso] = useState(false);
   const [secondiRinvio, setSecondiRinvio] = useState(0);
 
-  const conferma = useRef<ConfirmationResult | null>(null);
-  const verificatore = useRef<RecaptchaVerifier | null>(null);
+  const { mandaCodice: chiediSms, verificaCodice: controllaSms, codiceChiesto } = useVerificaTelefono();
   const numeroE164 = useRef<string>('');
 
   useEffect(() => {
@@ -43,20 +37,6 @@ export default function Accesso() {
     const t = setTimeout(() => setSecondiRinvio((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [secondiRinvio]);
-
-  useEffect(() => {
-    return () => {
-      verificatore.current?.clear();
-      verificatore.current = null;
-    };
-  }, []);
-
-  function prendiVerificatore(): RecaptchaVerifier {
-    if (!verificatore.current) {
-      verificatore.current = new RecaptchaVerifier(auth, 'recaptcha', { size: 'invisible' });
-    }
-    return verificatore.current;
-  }
 
   async function mandaCodice(nuovoInvio = false) {
     setErrore(null);
@@ -85,15 +65,12 @@ export default function Accesso() {
         }
       }
 
-      conferma.current = await signInWithPhoneNumber(auth, numero, prendiVerificatore());
+      await chiediSms(numero);
       numeroE164.current = numero;
       setPasso('codice');
       setSecondiRinvio(ATTESA_RINVIO);
       if (nuovoInvio) setCodice('');
     } catch (e) {
-      // Un reCAPTCHA già usato non si ricicla: al prossimo tentativo se ne fa uno nuovo.
-      verificatore.current?.clear();
-      verificatore.current = null;
       setErrore(messaggioErrore(e));
     } finally {
       setInCorso(false);
@@ -106,7 +83,7 @@ export default function Accesso() {
       setErrore('Il codice è di sei cifre.');
       return;
     }
-    if (!conferma.current) {
+    if (!codiceChiesto()) {
       setErrore('Ricomincia: il codice non è più valido.');
       setPasso('numero');
       return;
@@ -114,8 +91,7 @@ export default function Accesso() {
 
     setInCorso(true);
     try {
-      const credenziale = await conferma.current.confirm(codice.trim());
-      const uid = credenziale.user.uid;
+      const uid = (await controllaSms(codice)).uid;
 
       if (BETA_SU_INVITO) {
         const pulito = normalizzaCodice(invito);

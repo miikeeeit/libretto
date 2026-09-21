@@ -2,6 +2,9 @@ node_modules/
 dist/
 dev-dist/
 
+# Le funzioni compilate: le rigenera `npm --prefix functions run build`
+functions/lib/
+
 # Configurazione locale: contiene le chiavi del progetto Firebase
 .env
 .env.local

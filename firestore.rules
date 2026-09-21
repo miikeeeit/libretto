@@ -230,6 +230,12 @@ service cloud.firestore {
     match /segnalazioni/{segnalazioneId} {
       allow read, write: if false;
     }
+    // §8.5: il libretto sospeso dopo due segnalazioni. Sta qui, e non come campo del
+    // profilo, proprio perché dal client non si possa né leggere né toccare: a dirlo
+    // al lavoratore è la funzione che gli rifiuta la richiesta.
+    match /sospensioni/{workerUid} {
+      allow read, write: if false;
+    }
 
     // Tutto quello che non è previsto qui sopra è chiuso.
     match /{documento=**} {

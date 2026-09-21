@@ -5,7 +5,9 @@ import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthProvider';
 import Accesso from './pages/Accesso';
+import ChiediConferma from './pages/ChiediConferma';
 import ComeFunziona from './pages/ComeFunziona';
+import Conferma from './pages/Conferma';
 import CreaProfilo from './pages/CreaProfilo';
 import InArrivo from './pages/InArrivo';
 import Libretto from './pages/Libretto';
@@ -38,16 +40,10 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/come-funziona" element={<ComeFunziona />} />
 
-      {/* Settimana 3 e 4: qui arrivano la conferma del responsabile e la pagina pubblica. */}
-      <Route
-        path="/c/:token"
-        element={
-          <InArrivo
-            titolo="Questo link non è ancora attivo"
-            testo="Le conferme si aprono tra poco. Riprova più avanti o chiedi a chi ti ha mandato il link."
-          />
-        }
-      />
+      {/* C1–C4: la conferma del responsabile. Nessun account, solo il suo telefono. */}
+      <Route path="/c/:token" element={<Conferma />} />
+
+      {/* Settimana 4: la pagina pubblica. */}
       <Route
         path="/p/:slug"
         element={
@@ -84,6 +80,14 @@ export default function App() {
         element={
           <ConProfilo>
             <NuovaStagione />
+          </ConProfilo>
+        }
+      />
+      <Route
+        path="/stagione/:id/conferma"
+        element={
+          <ConProfilo>
+            <ChiediConferma />
           </ConProfilo>
         }
       />

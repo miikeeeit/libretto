@@ -50,17 +50,31 @@ async function schermata(page, nome) {
 await azzeraEmulatori();
 
 const browser = await chromium.launch();
-// Le misure di un telefono, perché è da lì che la gente lo aprirà.
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-
 const problemi = [];
-page.on('pageerror', (e) => problemi.push(`errore di pagina: ${e}`));
-page.on('response', (r) => {
-  // L'emulatore Auth non implementa la configurazione di reCAPTCHA: succede solo in locale.
-  if (r.status() >= 400 && !r.url().includes('recaptchaConfig')) {
-    problemi.push(`HTTP ${r.status()} ${r.url()}`);
-  }
-});
+
+function guarda(pagina, chi) {
+  pagina.on('pageerror', (e) => problemi.push(`${chi}: errore di pagina: ${e}`));
+  pagina.on('response', (r) => {
+    // L'emulatore Auth non implementa la configurazione di reCAPTCHA: solo in locale.
+    if (r.status() >= 400 && !r.url().includes('recaptchaConfig')) {
+      problemi.push(`${chi}: HTTP ${r.status()} ${r.url()}`);
+    }
+  });
+  return pagina;
+}
+
+// Le misure di un telefono, perché è da lì che la gente lo aprirà.
+const SCHERMO = { viewport: { width: 390, height: 844 } };
+
+// Il lavoratore e il responsabile sono due persone su due telefoni: due contesti
+// separati, altrimenti si confermerebbe da solo — che è esattamente ciò che Libretto
+// deve impedire.
+const page = guarda(await (await browser.newContext(SCHERMO)).newPage(), 'lavoratore');
+
+async function telefonoDelResponsabile(chi = 'responsabile') {
+  const contesto = await browser.newContext(SCHERMO);
+  return guarda(await contesto.newPage(), chi);
+}
 
 let passi = 0;
 function fatto(testo) {
@@ -134,6 +148,11 @@ try {
   await schermata(page, '4-stagione');
   await page.getByRole('button', { name: 'Salva la stagione' }).click();
 
+  // Salvata una stagione si arriva su L5, che è il senso di averla scritta: qui la
+  // conferma la si chiede più avanti, quindi si torna al libretto.
+  await page.getByRole('heading', { name: 'Chiedi la conferma' }).waitFor({ timeout: 20000 });
+  await page.getByRole('link', { name: 'Torna al libretto' }).click();
+
   await page.getByRole('heading', { name: 'Bar Somma' }).waitFor({ timeout: 20000 });
   const numeri1 = await page.locator('.numeri').innerText();
   const stato1 = await page.locator('.stato').first().innerText();
@@ -154,6 +173,8 @@ try {
   await page.getByLabel('Mese di fine').selectOption('8');
   await page.getByLabel('Anno di fine').selectOption('2024');
   await page.getByRole('button', { name: 'Salva la stagione' }).click();
+  await page.getByRole('heading', { name: 'Chiedi la conferma' }).waitFor({ timeout: 20000 });
+  await page.getByRole('link', { name: 'Torna al libretto' }).click();
 
   await page.locator('.elenco-stagioni li').nth(1).waitFor({ timeout: 20000 });
   const numeri2 = await page.locator('.numeri').innerText();
@@ -170,15 +191,132 @@ try {
   fatto(`stagioni in ordine, dalla più recente: ${periodi[0]} poi ${periodi[1]}`);
 
   // ---- Correggere una stagione --------------------------------------------
-  await page.locator('.elenco-stagioni li').first().getByRole('link', { name: 'Correggi' }).click();
+  await page.locator('.elenco-stagioni li').nth(1).getByRole('link', { name: 'Correggi' }).click();
   await page.getByRole('heading', { name: 'Correggi la stagione' }).waitFor({ timeout: 20000 });
   await page.getByLabel('Che ruolo facevi').selectOption('cucina');
   await page.getByRole('button', { name: 'Salva le correzioni' }).click();
   await page.getByRole('heading', { name: 'Bar Somma' }).first().waitFor({ timeout: 20000 });
-  const ruoloCorretto = await page.locator('.elenco-stagioni .sottotitolo').first().innerText();
+  const ruoloCorretto = await page.locator('.elenco-stagioni .sottotitolo').nth(1).innerText();
   if (!ruoloCorretto.startsWith('Cucina')) throw new Error(`Correzione non salvata: "${ruoloCorretto}"`);
   await schermata(page, '5-libretto-pieno');
   fatto(`stagione corretta: ora è "${ruoloCorretto}"`);
+
+  // ---- L5: chiedere la conferma -------------------------------------------
+  await page
+    .locator('.elenco-stagioni li')
+    .first()
+    .getByRole('link', { name: 'Chiedi la conferma' })
+    .click();
+  await page.getByRole('heading', { name: 'Chiedi la conferma' }).waitFor({ timeout: 20000 });
+  await page.getByLabel('Chi ti ha visto lavorare').fill('Ciro');
+  await page.getByLabel('Il suo numero di cellulare').fill('348 111 2222');
+  await page.getByRole('button', { name: 'Prepara il messaggio' }).click();
+
+  const messaggio = await page.locator('.anteprima-messaggio').innerText({ timeout: 20000 });
+  const token = /\/c\/([A-Za-z0-9_-]+)/.exec(messaggio)?.[1];
+  if (!token) throw new Error(`Nessun link nel messaggio: "${messaggio}"`);
+  if (!messaggio.startsWith('Ciao Ciro, sono Mario Rossi.')) {
+    throw new Error(`Messaggio inatteso: "${messaggio}"`);
+  }
+  const whatsapp = await page.getByRole('link', { name: 'Manda su WhatsApp' }).getAttribute('href');
+  if (!whatsapp?.startsWith('https://wa.me/393481112222?text=')) {
+    throw new Error(`Link WhatsApp inatteso: ${whatsapp}`);
+  }
+  await schermata(page, '6-chiedi-conferma');
+  fatto('richiesta creata, messaggio pronto per il WhatsApp del lavoratore');
+
+  await page.getByRole('button', { name: 'Ho mandato il messaggio' }).click();
+  const statoAttesa = await page.locator('.stato').first().innerText({ timeout: 20000 });
+  if (statoAttesa.toLowerCase() !== 'in attesa') throw new Error(`Stato inatteso: "${statoAttesa}"`);
+  fatto('la stagione è passata in attesa');
+
+  // ---- C2: un numero che passa la maschera ma non è quello giusto ----------
+  // 348 555 5522 ha le stesse cifre visibili di 348 111 2222: il controllo del client
+  // lo lascia passare, e deve fermarlo il server. È la prova che conta.
+  const impostore = await telefonoDelResponsabile('impostore');
+  await impostore.goto(`${BASE}/c/${token}`, { waitUntil: 'load' });
+  await impostore.getByRole('heading', { name: 'Per confermare, verifica il tuo numero' }).waitFor({ timeout: 20000 });
+  await impostore.getByLabel('Il tuo numero di cellulare').fill('348 555 5522');
+  await impostore.getByRole('button', { name: 'Mandami il codice' }).click();
+  // Si aspetta la schermata del codice: l'emulatore lo elenca solo quando l'SMS è
+  // davvero partito.
+  await impostore.getByRole('heading', { name: 'Scrivi il codice' }).waitFor({ timeout: 20000 });
+  await impostore.getByLabel('Codice di sei cifre').fill(await codiceSms());
+  await impostore.getByRole('button', { name: 'Continua' }).click();
+  await impostore
+    .getByRole('heading', { name: 'Questo link è stato inviato a un altro numero' })
+    .waitFor({ timeout: 20000 });
+  await schermata(impostore, '7-numero-sbagliato');
+  fatto('un altro numero, verificato per davvero, viene respinto dal server');
+
+  // ---- C1-C4: la conferma vera ---------------------------------------------
+  const responsabile = await telefonoDelResponsabile();
+  await responsabile.goto(`${BASE}/c/${token}`, { waitUntil: 'load' });
+  const righe = await responsabile.locator('.quattro-righe').innerText({ timeout: 20000 });
+  if (!righe.includes('Mario Rossi') || !righe.includes('Bar Somma')) {
+    throw new Error(`Le quattro righe non tornano: "${righe}"`);
+  }
+  if (righe.includes('347') || righe.includes('Ciro')) {
+    throw new Error('La pagina di conferma mostra dati che non deve mostrare.');
+  }
+  // Il numero del responsabile non deve arrivare al browser nemmeno nascosto: se il
+  // link finisse alla persona sbagliata, si porterebbe dietro il suo telefono.
+  const sorgente = await responsabile.content();
+  if (sorgente.includes('1112222') || sorgente.includes('111 2222')) {
+    throw new Error('Il numero del responsabile è arrivato per intero nella pagina.');
+  }
+  await schermata(responsabile, '8-conferma-c1');
+
+  await responsabile.getByLabel('Il tuo numero di cellulare').fill('348 111 2222');
+  await responsabile.getByRole('button', { name: 'Mandami il codice' }).click();
+  // Si aspetta la schermata del codice: l'emulatore lo elenca solo quando l'SMS è
+  // davvero partito.
+  await responsabile.getByRole('heading', { name: 'Scrivi il codice' }).waitFor({ timeout: 20000 });
+  await responsabile.getByLabel('Codice di sei cifre').fill(await codiceSms());
+  await responsabile.getByRole('button', { name: 'Continua' }).click();
+
+  // C3: il responsabile toglie una competenza, aggiunge "lo riprenderei" e conferma.
+  await responsabile.getByText('Togli quelle che non riconosci').waitFor({ timeout: 20000 });
+  await responsabile.getByLabel('Caffetteria').uncheck();
+  await responsabile.getByText('Lo riprenderei').click();
+  await responsabile.getByLabel('Il tuo ruolo').selectOption('titolare');
+  await responsabile.getByText('La mia conferma, senza il mio nome').click();
+  await schermata(responsabile, '9-conferma-c3');
+  await responsabile.getByRole('button', { name: 'Confermo, ha lavorato qui' }).click();
+
+  await responsabile.getByRole('heading', { name: 'Fatto, grazie' }).waitFor({ timeout: 20000 });
+  const grazie = await responsabile.locator('.scheda').innerText();
+  if (!grazie.includes('Mario')) throw new Error(`Schermata finale inattesa: "${grazie}"`);
+  await schermata(responsabile, '10-conferma-c4');
+  fatto('conferma data dal numero giusto, con una competenza tolta e «lo riprenderei»');
+
+  // ---- Il link non si riusa -------------------------------------------------
+  const secondoGiro = await telefonoDelResponsabile('secondo giro');
+  await secondoGiro.goto(`${BASE}/c/${token}`, { waitUntil: 'load' });
+  await secondoGiro
+    .getByRole('heading', { name: 'Questa conferma è già stata data. Grazie.' })
+    .waitFor({ timeout: 20000 });
+  fatto('lo stesso link non serve una seconda volta');
+
+  // ---- Il libretto del lavoratore ------------------------------------------
+  await page.reload({ waitUntil: 'load' });
+  await page.locator('.stato--confermata').first().waitFor({ timeout: 20000 });
+  const numeriFinali = await page.locator('.numeri').innerText();
+  if (!numeriFinali.includes('1 confermata') || !numeriFinali.includes('1 lo riprenderebbe')) {
+    throw new Error(`Numeri inattesi: "${numeriFinali}"`);
+  }
+  const conferma = await page.locator('.elenco-stagioni li').first().innerText();
+  if (!conferma.includes('Confermata dal titolare')) {
+    throw new Error(`Riga di conferma inattesa: "${conferma}"`);
+  }
+  if (conferma.includes('Caffetteria')) {
+    throw new Error('Una competenza tolta dal responsabile risulta ancora confermata.');
+  }
+  if (!conferma.includes('Cassa e chiusura di cassa')) {
+    throw new Error('La competenza confermata non compare.');
+  }
+  await schermata(page, '11-libretto-confermato');
+  fatto(`il libretto vede la conferma: ${numeriFinali}`);
 
   // ---- Il codice di invito è bruciato --------------------------------------
   await page.getByRole('button', { name: /Esci da Libretto/ }).click();

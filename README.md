@@ -6,8 +6,10 @@ La specifica è in [`SPEC.md`](SPEC.md) e vale come riferimento: quello che non 
 costruisce prima di dicembre. Le decisioni prese stanno in [`DECISIONI.md`](DECISIONI.md), le idee
 rimandate in [`DOPO.md`](DOPO.md).
 
-**Stato: settimane 1 e 2 fatte** — accesso col telefono, profilo, stagioni e strutture (L1–L4).
-Criteri della §11 soddisfatti: ti registri e vedi il tuo profilo, e aggiungi le tue stagioni.
+**Stato: settimane 1, 2 e 3 fatte** — accesso col telefono, profilo, stagioni e strutture, e la
+conferma del responsabile con le Cloud Functions (L1–L5, C1–C4). Criteri della §11 soddisfatti:
+ti registri e vedi il tuo profilo, aggiungi le tue stagioni, e un responsabile te ne conferma una
+dal suo telefono.
 
 ---
 
@@ -53,9 +55,12 @@ npm install
 Due terminali:
 
 ```sh
-npm run emulatori    # Auth, Firestore, Storage e la loro interfaccia su :4000
+npm run emulatori    # Auth, Firestore, Storage, Functions e l'interfaccia su :4000
 npm run dev          # l'app su :5173
 ```
+
+`npm run emulatori` compila le funzioni prima di partire, quindi dopo una modifica in
+`functions/` basta riavviarlo (o tenere aperto `npm --prefix functions run watch`).
 
 Con `VITE_USA_EMULATORI=1` nel `.env`, l'app parla con gli emulatori: nessun SMS parte davvero e
 il codice di verifica si legge nei log dell'emulatore Auth (o nell'interfaccia su
@@ -92,8 +97,9 @@ commento su cosa aggiungere.
 
 ```sh
 npm run lint            # i tipi
-npm test                # le regole di sicurezza: 50 prove, sull'emulatore
-npm run prova:flusso    # il flusso vero in un browser (vuole emulatori + dev avviati)
+npm test                # le regole di sicurezza: 54 prove, sull'emulatore
+npm run prova:flusso    # i 16 passaggi del flusso vero in un browser
+                        # (vuole emulatori + dev avviati)
 ```
 
 `npm test` è la prova più importante del progetto: non dimostra che l'app funziona, dimostra che
@@ -107,9 +113,12 @@ La prima volta, per `prova:flusso`, serve il browser: `npx playwright install ch
 ## 6. Mandare online
 
 ```sh
-npm run deploy:regole   # solo le regole di sicurezza: si può fare da subito e spesso
-npm run deploy          # build + hosting + regole
+npm run deploy:regole    # solo le regole di sicurezza: si può fare da subito e spesso
+npm run deploy:funzioni  # solo le Cloud Functions
+npm run deploy           # build + hosting + regole + indici + funzioni
 ```
+
+Le funzioni girano in `europe-west8`, come i dati: niente esce dall'Italia.
 
 ## 7. Com'è fatto
 
@@ -121,16 +130,17 @@ src/
   data/comuni.ts     i 33 comuni della provincia di Latina, con le coordinate per il geohash
   data/ruoli.ts      i 12 ruoli e le 54 competenze della §7, riviste il 2026-09-21 (PC3)
   lib/               Firebase, telefono, geohash, inviti, profilo, stagioni, strutture,
-                     periodo, eventi, errori
+                     periodo, funzioni, eventi, errori
   pages/             L1 accesso, L2 crea profilo, L3 libretto, L4 stagione,
-                     privacy, come funziona
+                     L5 chiedi conferma, C1-C4 conferma, privacy, come funziona
+functions/src/       le funzioni lato server: richieste.ts, conferme.ts
 firestore.rules      chi può scrivere cosa: è qui che vive la fiducia
 storage.rules        foto pubbliche, CV privati
 test/regole.test.mjs le prove delle regole
 strumenti/           inviti per l'emulatore, prova del flusso in browser
 ```
 
-Due scelte che vale la pena sapere prima di leggere il codice:
+Quattro scelte che vale la pena sapere prima di leggere il codice:
 
 - **L'indirizzo pubblico si prenota prima del profilo.** `slugs/{slug}` si può creare ma non
   modificare: chi arriva secondo su `mario-rossi-4f2a` viene fermato dalle regole. È così che due
@@ -139,6 +149,11 @@ Due scelte che vale la pena sapere prima di leggere il codice:
 - **Il codice di invito si controlla prima di mandare l'SMS.** I documenti `inviti` si leggono
   solo conoscendo il codice per intero (elencarli è vietato dalle regole), così il controllo si
   può fare senza essere collegati e senza spendere un SMS per scoprire che il codice era finto.
+- **Nessun controllo che dà fiducia sta nel frontend.** Il telefono del responsabile, il
+  confronto con quello che ha verificato e lo stato «confermata» vivono solo dentro le Cloud
+  Functions, e le regole chiudono `richieste`, `conferme`, `responsabili` e `segnalazioni` al
+  client. Quello che si vede in `src/pages/Conferma.tsx` è solo l'interfaccia: se qualcuno la
+  aggira, il server rifiuta comunque.
 - **L'autocompletamento delle strutture cerca in due modi**: dall'inizio del nome e per parola
   intera, perché chi ha lavorato al Bar Somma scrive «somma», non «bar». Se la stessa struttura
   finisce nel database tre volte scritta in tre modi, «confermata da 3 strutture» diventa una
@@ -150,7 +165,7 @@ Due scelte che vale la pena sapere prima di leggere il codice:
 |---|---|---|
 | 1 | Accesso col telefono, profilo (L1–L2) | fatto |
 | 2 | Stagioni e strutture (L3–L4), liste §7 | fatto |
-| 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | **da fare — prima serve PC2** |
-| 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | da fare |
+| 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | fatto |
+| 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | **da fare** |
 | 5 | Informativa, anti-frode §8, test di rottura | da fare — PC4 e PC5 |
 | 6 | Beta chiusa con 3 colleghi | da fare |

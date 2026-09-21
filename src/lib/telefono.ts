@@ -42,9 +42,25 @@ export function formattaTelefono(e164: string): string {
 /**
  * Numero mascherato per la pagina di conferma (C1: "347 •••• 21").
  * Si mostrano le prime tre e le ultime due cifre nazionali, il resto coperto.
+ *
+ * Il numero per intero non arriva mai al browser di chi apre il link: se il link
+ * finisse alla persona sbagliata, si porterebbe dietro il telefono del responsabile.
  */
 export function mascheraTelefono(e164: string): string {
   const nazionale = e164.startsWith(PREFISSO_ITALIA) ? e164.slice(PREFISSO_ITALIA.length) : e164.replace(/^\+/, '');
   if (nazionale.length < 6) return '•••••';
   return `${nazionale.slice(0, 3)} •••• ${nazionale.slice(-2)}`;
+}
+
+/**
+ * Il numero scritto sta dentro la maschera mostrata?
+ * Serve a fermare un numero sbagliato **prima** di mandare l'SMS: il controllo vero lo
+ * fa il server sul telefono verificato, questo risparmia solo un messaggio a pagamento
+ * e fa arrivare l'avviso subito.
+ */
+export function combaciaConMaschera(e164: string, maschera: string): boolean {
+  const cifre = maschera.replace(/\D/g, '');
+  if (cifre.length < 5) return true;
+  const nazionale = e164.startsWith(PREFISSO_ITALIA) ? e164.slice(PREFISSO_ITALIA.length) : e164.replace(/^\+/, '');
+  return nazionale.startsWith(cifre.slice(0, 3)) && nazionale.endsWith(cifre.slice(-2));
 }

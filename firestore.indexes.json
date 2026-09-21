@@ -1,4 +1,41 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "comment": "§8.4: quante conferme ha fatto questo numero nelle ultime 24 ore.",
+      "collectionGroup": "conferme",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "responsabileUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "§8.3: quanti lavoratori diversi ha confermato questo numero nella stessa struttura.",
+      "collectionGroup": "conferme",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "responsabileUid", "order": "ASCENDING" },
+        { "fieldPath": "strutturaId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "§8.4: quante richieste aperte ha questo lavoratore.",
+      "collectionGroup": "richieste",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "workerUid", "order": "ASCENDING" },
+        { "fieldPath": "stato", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "§8.5: quante segnalazioni «mai lavorato qui» ha questo lavoratore.",
+      "collectionGroup": "segnalazioni",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "workerUid", "order": "ASCENDING" },
+        { "fieldPath": "tipo", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

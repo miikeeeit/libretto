@@ -192,10 +192,13 @@ export default function Libretto() {
               )}
 
               <div className="stagione__azioni">
-                {(s.stato === 'bozza' || s.stato === 'non_confermata' || s.stato === 'scaduta') && (
-                  <button type="button" className="bottone bottone--secondario bottone--piccolo" disabled>
+                {s.stato !== 'confermata' && (
+                  <Link
+                    to={`/stagione/${s.id}/conferma`}
+                    className="bottone bottone--secondario bottone--piccolo"
+                  >
                     {s.stato === 'bozza' ? 'Chiedi la conferma' : 'Rimanda la richiesta'}
-                  </button>
+                  </Link>
                 )}
                 {modificabile(s.stato) && (
                   <Link to={`/stagione/${s.id}`} className="bottone-testo">
@@ -211,9 +214,8 @@ export default function Libretto() {
       <section className="scheda scheda--in-arrivo">
         <h2>Il prossimo passo</h2>
         <p>
-          Chiedere la conferma: mandi il link dal tuo WhatsApp a chi ti ha visto lavorare, e chi lo
-          riceve verifica il proprio numero e conferma con un tap. Arriva la settimana prossima,
-          insieme alla tua pagina pubblica.
+          La tua pagina pubblica, quella che mandi a un datore: arriva la settimana prossima, con le
+          stagioni confermate separate da quelle che hai solo dichiarato.
         </p>
       </section>
 

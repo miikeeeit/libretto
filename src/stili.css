@@ -534,6 +534,57 @@ code {
   color: var(--rosso);
 }
 
+/* ---------- conferma del responsabile (C1–C4) ---------- */
+
+/* Quattro righe e nient'altro: chi legge sta facendo un favore a qualcuno, di fretta. */
+.quattro-righe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--bordo);
+  margin-bottom: 6px;
+}
+
+.riga-principale {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  margin-bottom: 6px;
+}
+
+.etichetta-riga {
+  display: inline-block;
+  min-width: 5.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--inchiostro-tenue);
+}
+
+.separatore {
+  border: 0;
+  border-top: 1px solid var(--bordo);
+  width: 100%;
+  margin: 4px 0;
+}
+
+.piede-conferma {
+  text-align: center;
+  padding: 0 8px;
+}
+
+.anteprima-messaggio {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--sfondo);
+  border-left: 3px solid var(--verde);
+  border-radius: 0 10px 10px 0;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --verde: #4bbd91;
