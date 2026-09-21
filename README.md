@@ -119,7 +119,7 @@ src/
   App.tsx            le rotte della §10
   auth/              chi è collegato e se ha già un libretto
   data/comuni.ts     i 33 comuni della provincia di Latina, con le coordinate per il geohash
-  data/ruoli.ts      BOZZA §7: da rivedere con Mike prima della settimana 2 (PC3)
+  data/ruoli.ts      i 12 ruoli e le 54 competenze della §7, riviste il 2026-09-21 (PC3)
   lib/               Firebase, telefono, geohash, inviti, profilo, eventi, errori
   pages/             L1 accesso, L2 crea profilo, L3 libretto, privacy, come funziona
 firestore.rules      chi può scrivere cosa: è qui che vive la fiducia
@@ -143,7 +143,7 @@ Due scelte che vale la pena sapere prima di leggere il codice:
 | Settimana | Cosa | Stato |
 |---|---|---|
 | 1 | Accesso col telefono, profilo (L1–L2) | fatto |
-| 2 | Stagioni e strutture (L3–L4), liste §7 | **da fare — prima serve PC3** |
+| 2 | Stagioni e strutture (L3–L4), liste §7 | **in corso** — liste §7 fatte (PC3) |
 | 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | da fare — prima serve PC2 |
 | 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | da fare |
 | 5 | Informativa, anti-frode §8, test di rottura | da fare — PC4 e PC5 |

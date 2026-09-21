@@ -270,23 +270,30 @@ segnalazioni/{id}
 
 ---
 
-## 7. Ruoli e competenze (bozza da correggere tu)
+## 7. Ruoli e competenze
 
-Questa lista la conosci meglio tu: va rivista con lo stesso occhio di un capo sala. Il criterio è che ogni competenza sia **osservabile in un turno**, cioè che un responsabile possa dire sì o no senza pensarci.
+> Rivista con Mike il **2026-09-21** (PC3). La bozza di partenza di questo documento è nella cronologia di git; la lista che conta è quella in `src/data/ruoli.ts`, e questa tabella la rispecchia.
 
-| Ruolo | Competenze |
-|---|---|
-| Sala | palmare/comande digitali · servizio al tavolo · gestione rango · banchetti ed eventi · carta dei vini · inglese al tavolo · apertura/chiusura sala · formazione nuovi |
-| Bar | caffetteria · cocktail base · cassa · gestione banco in affollamento · inventario/ordini · apertura/chiusura |
-| Cucina | linea calda · linea fredda/antipasti · pizzeria · pasticceria · preparazioni base · HACCP · gestione ordini fornitori |
-| Lavaggio | lavaggio stoviglie · pulizia cucina a fine servizio · HACCP |
-| Reception | check-in/check-out · gestionale alberghiero · telefono e prenotazioni · inglese · seconda lingua · cassa |
-| Housekeeping | camere · aree comuni · lavanderia · gestione biancheria |
-| Cassa | cassa e chiusura · POS e pagamenti · gestione resti e fondo cassa |
-| Commesso/a | vendita assistita · cassa · allestimento vetrine · magazzino · inventario |
-| Responsabile | gestione turni · formazione staff · gestione reclami · chiusure di cassa · ordini fornitori |
+Il criterio di ogni riga è che la competenza sia **osservabile in un turno**, cioè che un responsabile possa dire sì o no senza pensarci. Per questo sono fuori due tipi di righe: quelle che ha chiunque faccia quel ruolo (dicono zero su una pagina pubblica) e quelle su cui il responsabile si fermerebbe a chiedersi cosa vogliano dire.
 
-Le competenze sono salvate con id stabili (`sala.palmare`, `bar.caffetteria`…), quindi i testi si possono cambiare senza rompere i dati.
+**Trasversali** (`generale.*`), un id solo per tutti i ruoli che le usano, così la pagina pubblica le conta insieme: cassa e chiusura di cassa · procedure HACCP rispettate · apertura e chiusura in autonomia · formazione dei nuovi · inglese, tedesco, francese e spagnolo con i clienti.
+
+| Ruolo | Competenze proprie del ruolo | Trasversali |
+|---|---|---|
+| Sala | palmare e comande digitali · gestione di un rango in autonomia · tiene il ritmo nel pieno del servizio · banchetti ed eventi · consiglia il vino al tavolo | inglese · apertura/chiusura · formazione nuovi |
+| Bar | caffetteria · cocktail base · tiene il banco nell'affollamento · inventario e ordini | cassa · inglese · apertura/chiusura |
+| Cucina | linea calda · linea fredda e antipasti · taglio e mise en place · pasticceria · tiene la linea nel pieno del servizio · ordini ai fornitori | HACCP |
+| Pizzeria | impasto e lieviti · forno · banco e farcitura nel picco · pizza al taglio e in teglia | HACCP |
+| Lavaggio | sta al passo nel pieno del servizio · pulizia della cucina a fine servizio · cura di macchina e attrezzature | HACCP |
+| Reception | check-in/check-out · gestionale alberghiero · telefono e prenotazioni | cassa · inglese · tedesco · francese · spagnolo |
+| Housekeeping | camere in partenza e riassetti · tiene il numero di camere del turno · aree comuni · lavanderia · gestione della biancheria | — |
+| Spiaggia e stabilimenti | ombrelloni, lettini e assegnazione posti · servizio di salvataggio in torretta · chiosco e servizio in spiaggia · prenotazioni e abbonamenti | cassa · inglese · apertura/chiusura |
+| Animazione | mini club e bambini · tornei e attività sportive · serate e spettacoli · audio e luci di base | inglese · tedesco |
+| Cassa | fondo cassa e gestione dei resti | cassa · inglese |
+| Commesso/a | vendita assistita · allestimento delle vetrine · magazzino e inventario | cassa · inglese |
+| Responsabile | gestione dei turni · gestione dei reclami · chiusure di cassa · ordini ai fornitori | formazione nuovi |
+
+Le competenze sono salvate con id stabili (`sala.palmare`, `generale.cassa`…), quindi i testi si possono cambiare senza rompere i dati. Cambiare un **id**, invece, significa perdere le conferme già raccolte su quella riga: si fa solo finché non ci sono conferme vere in giro.
 
 ---
 
