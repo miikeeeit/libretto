@@ -1,0 +1,235 @@
+rules_version = '2';
+
+// Regole di sicurezza — §10 della specifica.
+//
+// Il principio: dal client si può scrivere solo ciò che è proprio, e mai i campi che
+// rendono vera una conferma. Tutto quello che dà fiducia (conferme, telefoni dei
+// responsabili, profili pubblici) lo scrivono solo le Cloud Functions, che dal client
+// non sono raggiungibili in nessun modo.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticato() {
+      return request.auth != null;
+    }
+
+    function proprietario(uid) {
+      return autenticato() && request.auth.uid == uid;
+    }
+
+    // ---- Inviti (beta chiusa, decisione PC1 del 2026-09-21) -------------------
+    // `get` è aperto perché il codice si controlla prima di mandare l'SMS, quando
+    // ancora nessuno è collegato. Non è una falla: `list` è vietato, quindi i codici
+    // non si possono elencare, e per leggerne uno bisogna già saperlo per intero.
+    // I codici li crea Mike dalla console (dal client non si creano né si cancellano).
+    match /inviti/{codice} {
+      allow get: if true;
+      allow list: if false;
+
+      // Un codice si intesta a un solo numero, e una volta sola.
+      allow update: if autenticato()
+        && resource.data.attivo == true
+        && resource.data.usatoDa == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usatoDa', 'usatoIl'])
+        && request.resource.data.usatoDa == request.auth.uid;
+
+      allow create, delete: if false;
+    }
+
+    // ---- Indirizzi pubblici prenotati ----------------------------------------
+    // Si può creare, non modificare: chi arriva secondo su uno slug già preso viene
+    // fermato qui, ed è questo che rende gli indirizzi unici.
+    match /slugs/{slug} {
+      allow get: if autenticato();
+      allow list: if false;
+      allow create: if autenticato()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---- Lavoratori ----------------------------------------------------------
+    match /workers/{uid} {
+
+      function campiAmmessi(d) {
+        return d.keys().hasOnly([
+          'nome', 'cognome', 'fotoPath', 'telefono', 'ruoloPrincipale', 'comune', 'provincia',
+          'geohash', 'disponibile', 'stagioneDisponibile', 'slug', 'privacy', 'cvPath',
+          'consensi', 'invito', 'createdAt', 'updatedAt'
+        ]);
+      }
+
+      function formaValida(d) {
+        return d.nome is string && d.nome.size() >= 2 && d.nome.size() <= 60
+          && d.cognome is string && d.cognome.size() >= 2 && d.cognome.size() <= 60
+          && d.ruoloPrincipale is string && d.ruoloPrincipale.size() <= 40
+          && d.comune is string && d.comune.size() <= 60
+          && d.provincia is string && d.provincia.size() <= 4
+          && d.geohash is string && d.geohash.size() <= 12
+          && d.disponibile is bool
+          && d.stagioneDisponibile is string && d.stagioneDisponibile.size() <= 9
+          && (d.fotoPath == null || d.fotoPath == 'foto/' + uid)
+          && (d.cvPath == null || d.cvPath == 'cv/' + uid)
+          && d.privacy.keys().hasOnly(['pubblico', 'mostraTelefono', 'mostraInAttesa', 'mostraCv'])
+          && d.privacy.pubblico is bool
+          && d.privacy.mostraTelefono is bool
+          && d.privacy.mostraInAttesa is bool
+          && d.privacy.mostraCv is bool;
+      }
+
+      // Il telefono non lo decide il client: deve essere quello verificato via SMS.
+      function telefonoSuo(d) {
+        return d.telefono == request.auth.token.phone_number;
+      }
+
+      // Lo slug deve essere già prenotato da questo uid (vedi /slugs).
+      function slugSuo(d) {
+        return d.slug is string
+          && d.slug.matches('^[a-z0-9-]{3,60}$')
+          && get(/databases/$(database)/documents/slugs/$(d.slug)).data.uid == uid;
+      }
+
+      // Beta chiusa: serve un codice di invito già intestato a questo uid.
+      // Quando la registrazione si apre a tutti (fine novembre, dopo PC5), qui basta
+      // aggiungere: `|| request.resource.data.invito == null`.
+      function invitoSuo(d) {
+        return d.invito is string
+          && get(/databases/$(database)/documents/inviti/$(d.invito)).data.usatoDa == uid;
+      }
+
+      allow get: if proprietario(uid);
+      allow list: if false;
+
+      allow create: if proprietario(uid)
+        && campiAmmessi(request.resource.data)
+        && formaValida(request.resource.data)
+        && telefonoSuo(request.resource.data)
+        && slugSuo(request.resource.data)
+        && invitoSuo(request.resource.data);
+
+      // Telefono, slug, invito e createdAt non si toccano più: non sono nell'elenco.
+      allow update: if proprietario(uid)
+        && campiAmmessi(request.resource.data)
+        && formaValida(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'nome', 'cognome', 'fotoPath', 'ruoloPrincipale', 'comune', 'provincia', 'geohash',
+          'disponibile', 'stagioneDisponibile', 'privacy', 'cvPath', 'consensi', 'updatedAt'
+        ]);
+
+      // La cancellazione passa dalla Cloud Function `eliminaAccount`, che deve portarsi
+      // via anche stagioni, richieste, conferme, foto e CV (§10).
+      allow delete: if false;
+
+      // ---- Stagioni (settimana 2) -------------------------------------------
+      match /stagioni/{stagioneId} {
+
+        function formaStagione(d) {
+          return d.keys().hasOnly([
+            'strutturaId', 'strutturaNome', 'strutturaComune', 'ruolo', 'dal', 'al',
+            'competenzeDichiarate', 'competenzeConfermate', 'stato', 'nascosta',
+            'riprenderebbe', 'ruoloResponsabile', 'richiestaId', 'createdAt', 'updatedAt'
+          ])
+            && d.strutturaId is string
+            && d.strutturaNome is string && d.strutturaNome.size() <= 120
+            && d.strutturaComune is string && d.strutturaComune.size() <= 60
+            && d.ruolo is string && d.ruolo.size() <= 40
+            && d.dal.matches('^[0-9]{4}-[0-9]{2}$')
+            && d.al.matches('^[0-9]{4}-[0-9]{2}$')
+            && d.competenzeDichiarate is list && d.competenzeDichiarate.size() <= 30
+            && d.nascosta is bool;
+        }
+
+        // Quello che rende vera una conferma lo scrive solo la Cloud Function:
+        // dal client questi campi devono restare vuoti, e lo stato non può
+        // diventare "confermata" da sé.
+        function nienteCampiDiFiducia(d) {
+          return d.competenzeConfermate.size() == 0
+            && d.riprenderebbe == false
+            && d.ruoloResponsabile == null
+            && d.stato in ['bozza', 'in_attesa'];
+        }
+
+        function soloCampiSuoi() {
+          return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'strutturaId', 'strutturaNome', 'strutturaComune', 'ruolo', 'dal', 'al',
+            'competenzeDichiarate', 'nascosta', 'stato', 'richiestaId', 'updatedAt'
+          ]);
+        }
+
+        allow read: if proprietario(uid);
+
+        allow create: if proprietario(uid)
+          && formaStagione(request.resource.data)
+          && nienteCampiDiFiducia(request.resource.data);
+
+        allow update: if proprietario(uid)
+          && formaStagione(request.resource.data)
+          && soloCampiSuoi()
+          && request.resource.data.stato in ['bozza', 'in_attesa'];
+
+        // Una stagione si può cancellare sempre: è roba sua (§1, regola 3).
+        allow delete: if proprietario(uid);
+      }
+    }
+
+    // ---- Strutture -----------------------------------------------------------
+    // Lettura a tutti (serve l'autocompletamento in L4), creazione a chi è collegato,
+    // modifica a nessuno: unire i duplicati è un lavoro da admin.
+    match /strutture/{strutturaId} {
+      allow read: if true;
+      allow create: if autenticato()
+        && request.resource.data.keys().hasOnly([
+          'nome', 'nomeNormalizzato', 'comune', 'provincia', 'geohash', 'nConferme',
+          'creataDa', 'unitaA', 'createdAt'
+        ])
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() >= 2
+        && request.resource.data.nome.size() <= 120
+        && request.resource.data.comune is string
+        && request.resource.data.nConferme == 0
+        && request.resource.data.unitaA == null
+        && request.resource.data.creataDa == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---- Profili pubblici ----------------------------------------------------
+    // Li scrive solo `pubblicaProfilo`, e contengono solo dati già filtrati dalla
+    // privacy: è per questo che si possono leggere senza essere collegati.
+    match /profiliPubblici/{slug} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---- Eventi (§12) --------------------------------------------------------
+    // Si scrivono e non si rileggono: servono a contare, non a sapere chi.
+    match /eventi/{eventoId} {
+      allow create: if request.resource.data.keys().hasOnly(['tipo', 'uidAnonimo', 'ts'])
+        && request.resource.data.tipo is string
+        && request.resource.data.tipo.size() <= 40
+        && (request.resource.data.uidAnonimo == null || request.resource.data.uidAnonimo is string);
+      allow read, update, delete: if false;
+    }
+
+    // ---- Solo Cloud Functions ------------------------------------------------
+    // Richieste, conferme, responsabili e segnalazioni contengono il telefono del
+    // responsabile e i dati che danno fiducia: dal client non si toccano, mai.
+    match /richieste/{richiestaId} {
+      allow read, write: if false;
+    }
+    match /conferme/{confermaId} {
+      allow read, write: if false;
+    }
+    match /responsabili/{responsabileUid} {
+      allow read, write: if false;
+    }
+    match /segnalazioni/{segnalazioneId} {
+      allow read, write: if false;
+    }
+
+    // Tutto quello che non è previsto qui sopra è chiuso.
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Libretto">
+  <rect width="512" height="512" rx="96" fill="#1a6b4f" />
+  <path d="M136 120h176a40 40 0 0 1 40 40v232a40 40 0 0 0-40-40H136z" fill="#ffffff" opacity="0.28" />
+  <path d="M376 120H200a40 40 0 0 0-40 40v232a40 40 0 0 1 40-40h176z" fill="#ffffff" />
+  <path d="M232 262l38 38 74-74" fill="none" stroke="#1a6b4f" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

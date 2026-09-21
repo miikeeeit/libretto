@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// §10: le foto sono pubbliche (le mostra la pagina del profilo), i CV sono privati.
+// Il CV lo legge solo una Cloud Function, che ne dà un link firmato e temporaneo a chi
+// apre la pagina pubblica — e solo se il lavoratore ha acceso "mostra il CV".
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /foto/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /cv/{uid} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /{percorso=**} {
+      allow read, write: if false;
+    }
+  }
+}

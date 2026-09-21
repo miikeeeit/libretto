@@ -1,0 +1,18 @@
+node_modules/
+dist/
+dev-dist/
+
+# Configurazione locale: contiene le chiavi del progetto Firebase
+.env
+.env.local
+.firebaserc
+
+# Emulatori
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+emulatori-dati/
+
+.DS_Store
+*.local
