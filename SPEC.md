@@ -143,7 +143,9 @@ Mostra quattro righe e niente altro:
 Sotto: "Per confermare, verifica il tuo numero". Il numero è già scritto e mascherato (es. 347 •••• 21), perché è quello indicato dal lavoratore.
 Se il link è scaduto, già usato o revocato, compare un messaggio chiaro e nient'altro.
 
-**C2 · Verifica** Il codice SMS arriva a quel numero e il responsabile lo inserisce. Se il telefono verificato non coincide con il numero indicato, la conferma viene bloccata con il messaggio "Questo link è stato inviato a un altro numero".
+**C2 · Verifica** Il codice SMS arriva a quel numero e il responsabile lo inserisce. Se il telefono verificato non coincide con il numero indicato, la conferma viene bloccata.
+
+> PC2 (2026-09-21): al messaggio "Questo link è stato inviato a un altro numero" si aggiunge come rimediare — "se hai lavorato con {nome}, chiedigli di rimandartelo su questo numero" — perché la regola resta intera ma la conferma non si perde per una cifra sbagliata. Il lavoratore corregge il numero e rimanda da L5: il token vecchio viene revocato e ne nasce uno nuovo.
 
 **C3 · Conferma**
 - Pulsante principale: **"Confermo, ha lavorato qui"**.
