@@ -118,6 +118,68 @@ try {
   }
   fatto('dopo il ricarico è ancora collegato e la disponibilità è salvata');
 
+  // ---- L4: la prima stagione, con una struttura nuova ----------------------
+  await page.getByRole('link', { name: 'Aggiungi stagione' }).click();
+  await page.getByRole('heading', { name: 'Aggiungi una stagione' }).waitFor({ timeout: 20000 });
+
+  await page.getByLabel('Dove hai lavorato').fill('Bar Somma');
+  await page.getByRole('button', { name: /^Aggiungi «Bar Somma»$/ }).click();
+  await page.getByLabel('In che comune è').fill('terra');
+  await page.getByRole('button', { name: 'Terracina' }).click();
+  await page.getByLabel('Che ruolo facevi').selectOption('bar');
+  await page.getByLabel('Mese di inizio').selectOption('5');
+  await page.getByLabel('Mese di fine').selectOption('9');
+  await page.getByLabel('Caffetteria').check();
+  await page.getByLabel('Cassa e chiusura di cassa').check();
+  await schermata(page, '4-stagione');
+  await page.getByRole('button', { name: 'Salva la stagione' }).click();
+
+  await page.getByRole('heading', { name: 'Bar Somma' }).waitFor({ timeout: 20000 });
+  const numeri1 = await page.locator('.numeri').innerText();
+  const stato1 = await page.locator('.stato').first().innerText();
+  if (!numeri1.includes('1 stagione')) throw new Error(`Numeri inattesi: "${numeri1}"`);
+  if (stato1.toLowerCase() !== 'bozza') throw new Error(`Stato inatteso: "${stato1}"`);
+  fatto(`stagione salvata in bozza: ${numeri1}`);
+
+  // ---- L4: la seconda, ritrovando la struttura dall'autocompletamento ------
+  // Si scrive "somma", non "bar somma": è il modo in cui la gente cerca, e se qui
+  // non la ritrova nascono due strutture uguali e «confermata da 2» diventa falso.
+  await page.getByRole('link', { name: 'Aggiungi stagione' }).click();
+  await page.getByRole('heading', { name: 'Aggiungi una stagione' }).waitFor({ timeout: 20000 });
+  await page.getByLabel('Dove hai lavorato').fill('somma');
+  await page.locator('.suggerimenti button', { hasText: 'Bar Somma' }).click({ timeout: 20000 });
+  await page.getByLabel('Che ruolo facevi').selectOption('sala');
+  await page.getByLabel('Mese di inizio').selectOption('6');
+  await page.getByLabel('Anno di inizio').selectOption('2024');
+  await page.getByLabel('Mese di fine').selectOption('8');
+  await page.getByLabel('Anno di fine').selectOption('2024');
+  await page.getByRole('button', { name: 'Salva la stagione' }).click();
+
+  await page.locator('.elenco-stagioni li').nth(1).waitFor({ timeout: 20000 });
+  const numeri2 = await page.locator('.numeri').innerText();
+  if (!numeri2.includes('2 stagioni')) throw new Error(`Numeri inattesi: "${numeri2}"`);
+  const strutture = await page.locator('.elenco-stagioni h3').allInnerTexts();
+  if (strutture.length !== 2 || new Set(strutture).size !== 1) {
+    throw new Error(`La struttura non è stata riusata: ${JSON.stringify(strutture)}`);
+  }
+  fatto(`seconda stagione sulla stessa struttura: ${numeri2}`);
+
+  // Dalla più recente: la stagione del 2026 sta sopra quella del 2024.
+  const periodi = await page.locator('.elenco-stagioni .aiuto').allInnerTexts();
+  if (!periodi[0]?.includes('2026')) throw new Error(`Ordine inatteso: ${JSON.stringify(periodi)}`);
+  fatto(`stagioni in ordine, dalla più recente: ${periodi[0]} poi ${periodi[1]}`);
+
+  // ---- Correggere una stagione --------------------------------------------
+  await page.locator('.elenco-stagioni li').first().getByRole('link', { name: 'Correggi' }).click();
+  await page.getByRole('heading', { name: 'Correggi la stagione' }).waitFor({ timeout: 20000 });
+  await page.getByLabel('Che ruolo facevi').selectOption('cucina');
+  await page.getByRole('button', { name: 'Salva le correzioni' }).click();
+  await page.getByRole('heading', { name: 'Bar Somma' }).first().waitFor({ timeout: 20000 });
+  const ruoloCorretto = await page.locator('.elenco-stagioni .sottotitolo').first().innerText();
+  if (!ruoloCorretto.startsWith('Cucina')) throw new Error(`Correzione non salvata: "${ruoloCorretto}"`);
+  await schermata(page, '5-libretto-pieno');
+  fatto(`stagione corretta: ora è "${ruoloCorretto}"`);
+
   // ---- Il codice di invito è bruciato --------------------------------------
   await page.getByRole('button', { name: /Esci da Libretto/ }).click();
   await page.getByRole('heading', { name: 'Entra col tuo numero' }).waitFor({ timeout: 20000 });

@@ -6,8 +6,8 @@ La specifica è in [`SPEC.md`](SPEC.md) e vale come riferimento: quello che non 
 costruisce prima di dicembre. Le decisioni prese stanno in [`DECISIONI.md`](DECISIONI.md), le idee
 rimandate in [`DOPO.md`](DOPO.md).
 
-**Stato: settimana 1 fatta** — accesso col telefono e profilo (L1–L2), più l'intestazione del
-libretto (L3). Criterio della §11 soddisfatto: ti registri e vedi il tuo profilo.
+**Stato: settimane 1 e 2 fatte** — accesso col telefono, profilo, stagioni e strutture (L1–L4).
+Criteri della §11 soddisfatti: ti registri e vedi il tuo profilo, e aggiungi le tue stagioni.
 
 ---
 
@@ -120,8 +120,10 @@ src/
   auth/              chi è collegato e se ha già un libretto
   data/comuni.ts     i 33 comuni della provincia di Latina, con le coordinate per il geohash
   data/ruoli.ts      i 12 ruoli e le 54 competenze della §7, riviste il 2026-09-21 (PC3)
-  lib/               Firebase, telefono, geohash, inviti, profilo, eventi, errori
-  pages/             L1 accesso, L2 crea profilo, L3 libretto, privacy, come funziona
+  lib/               Firebase, telefono, geohash, inviti, profilo, stagioni, strutture,
+                     periodo, eventi, errori
+  pages/             L1 accesso, L2 crea profilo, L3 libretto, L4 stagione,
+                     privacy, come funziona
 firestore.rules      chi può scrivere cosa: è qui che vive la fiducia
 storage.rules        foto pubbliche, CV privati
 test/regole.test.mjs le prove delle regole
@@ -137,14 +139,18 @@ Due scelte che vale la pena sapere prima di leggere il codice:
 - **Il codice di invito si controlla prima di mandare l'SMS.** I documenti `inviti` si leggono
   solo conoscendo il codice per intero (elencarli è vietato dalle regole), così il controllo si
   può fare senza essere collegati e senza spendere un SMS per scoprire che il codice era finto.
+- **L'autocompletamento delle strutture cerca in due modi**: dall'inizio del nome e per parola
+  intera, perché chi ha lavorato al Bar Somma scrive «somma», non «bar». Se la stessa struttura
+  finisce nel database tre volte scritta in tre modi, «confermata da 3 strutture» diventa una
+  bugia, e quel numero è metà del valore di Libretto.
 
 ## 8. Cosa manca (§11)
 
 | Settimana | Cosa | Stato |
 |---|---|---|
 | 1 | Accesso col telefono, profilo (L1–L2) | fatto |
-| 2 | Stagioni e strutture (L3–L4), liste §7 | **in corso** — liste §7 fatte (PC3) |
-| 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | da fare — prima serve PC2 |
+| 2 | Stagioni e strutture (L3–L4), liste §7 | fatto |
+| 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | **da fare — prima serve PC2** |
 | 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | da fare |
 | 5 | Informativa, anti-frode §8, test di rottura | da fare — PC4 e PC5 |
 | 6 | Beta chiusa con 3 colleghi | da fare |

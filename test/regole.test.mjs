@@ -329,6 +329,30 @@ describe('stagioni', () => {
     );
   });
 
+  it('una stagione respinta si corregge e torna in bozza', async () => {
+    // È il caso di L3: il responsabile dice che i dati sono sbagliati, il lavoratore li
+    // sistema e la richiesta riparte da capo.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ...percorso, 'respinta'), stagione({ stato: 'non_confermata' }));
+    });
+    await assertSucceeds(
+      updateDoc(doc(comeMario(), ...percorso, 'respinta'), {
+        strutturaNome: 'Agriturismo Y',
+        stato: 'bozza',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('non si mette da soli lo stato «scaduta» o «non confermata»', async () => {
+    // Li scrive solo la Cloud Function: "scaduta" la pulizia notturna, "non confermata"
+    // il responsabile che dice che non corrisponde.
+    await assertFails(updateDoc(doc(comeMario(), ...percorso, 'esistente'), { stato: 'scaduta' }));
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'esistente'), { stato: 'non_confermata' }),
+    );
+  });
+
   it('i propri dati si correggono e si nascondono', async () => {
     await assertSucceeds(
       updateDoc(doc(comeMario(), ...percorso, 'esistente'), {
@@ -390,36 +414,36 @@ describe('quello che solo le Cloud Functions possono toccare', () => {
 describe('strutture', () => {
   before(preparaDati);
 
+  function struttura(modifiche = {}) {
+    return {
+      nome: 'Agriturismo X',
+      nomeNormalizzato: 'agriturismo x',
+      parole: ['agriturismo'],
+      comune: 'Terracina',
+      provincia: 'LT',
+      geohash: 'sr0abcd',
+      nConferme: 0,
+      creataDa: LAVORATORE,
+      unitaA: null,
+      createdAt: new Date(),
+      ...modifiche,
+    };
+  }
+
   it("si creano da chi è collegato, per l'autocompletamento", async () => {
-    await assertSucceeds(
-      addDoc(collection(comeMario(), 'strutture'), {
-        nome: 'Agriturismo X',
-        nomeNormalizzato: 'agriturismo x',
-        comune: 'Terracina',
-        provincia: 'LT',
-        geohash: 'sr0abcd',
-        nConferme: 0,
-        creataDa: LAVORATORE,
-        unitaA: null,
-        createdAt: new Date(),
-      }),
-    );
+    await assertSucceeds(addDoc(collection(comeMario(), 'strutture'), struttura()));
   });
 
   it('non si creano con conferme già in tasca', async () => {
-    await assertFails(
-      addDoc(collection(comeMario(), 'strutture'), {
-        nome: 'Agriturismo Y',
-        nomeNormalizzato: 'agriturismo y',
-        comune: 'Terracina',
-        provincia: 'LT',
-        geohash: 'sr0abcd',
-        nConferme: 99,
-        creataDa: LAVORATORE,
-        unitaA: null,
-        createdAt: new Date(),
-      }),
-    );
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ nConferme: 99 })));
+  });
+
+  it('non si creano a nome di un altro', async () => {
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ creataDa: ALTRO })));
+  });
+
+  it('non si creano già unite a un’altra struttura', async () => {
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ unitaA: 'struttura-1' })));
   });
 
   it('si leggono senza essere collegati (serve in L4) ma non si modificano', async () => {

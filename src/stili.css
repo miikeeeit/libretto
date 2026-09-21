@@ -322,6 +322,15 @@ code {
   padding: 9px 14px;
 }
 
+/* Un bottone spento deve sembrare spento: se sembra premibile e non lo è, è peggio
+   che non esserci. */
+.bottone--secondario:disabled {
+  color: var(--inchiostro-tenue);
+  background: var(--sfondo);
+  border-style: dashed;
+  cursor: default;
+}
+
 .bottone-testo {
   font: inherit;
   font-size: 0.9rem;
@@ -381,6 +390,148 @@ code {
   font-size: 0.9rem;
   color: var(--inchiostro-tenue);
   margin-top: 2px;
+}
+
+/* ---------- stagioni ---------- */
+
+.testa-elenco {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.bottone--piccolo {
+  padding: 9px 14px;
+  font-size: 0.9rem;
+}
+
+.elenco-stagioni {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stagione {
+  background: var(--scheda);
+  border: 1px solid var(--bordo);
+  border-left: 4px solid var(--bordo);
+  border-radius: var(--raggio);
+  box-shadow: var(--ombra);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Il colore del bordo dice lo stato prima di qualunque parola. */
+.stagione--confermata {
+  border-left-color: var(--verde);
+}
+
+.stagione--in_attesa,
+.stagione--scaduta {
+  border-left-color: var(--inchiostro-tenue);
+}
+
+.stagione__testa {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stagione__testa h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.stato {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--inchiostro-tenue);
+  background: var(--sfondo);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.stato--confermata {
+  color: #fff;
+  background: var(--verde);
+}
+
+.riga-conferma {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--verde);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--verde-chiaro);
+  color: var(--verde);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.competenze {
+  font-size: 0.9rem;
+  margin-top: 6px;
+}
+
+.competenze--dichiarate {
+  color: var(--inchiostro-tenue);
+}
+
+.stagione__azioni {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.gruppo {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gruppo legend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--inchiostro-tenue);
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.riga-aggiungi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: -4px;
+}
+
+.bottone-testo--pericolo {
+  color: var(--rosso);
 }
 
 @media (prefers-color-scheme: dark) {

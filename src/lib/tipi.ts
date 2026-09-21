@@ -52,7 +52,6 @@ export type Worker = {
 
 export type StatoStagione = 'bozza' | 'in_attesa' | 'confermata' | 'non_confermata' | 'scaduta';
 
-/** Settimana 2. Qui solo per non spargere la forma del documento in più posti. */
 export type Stagione = {
   strutturaId: string;
   strutturaNome: string;
@@ -72,7 +71,30 @@ export type Stagione = {
   /** Scritto solo dalla Cloud Function. */
   ruoloResponsabile: string | null;
   richiestaId: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 };
+
+/** Una stagione con il suo id, come la si legge da Firestore. */
+export type StagioneConId = Stagione & { id: string };
+
+/** §6: i nomi delle strutture si copiano sulla stagione al momento in cui si salva. */
+export type Struttura = {
+  nome: string;
+  nomeNormalizzato: string;
+  /** Le parole del nome, per trovare "Bar Somma" scrivendo "somma". */
+  parole: string[];
+  comune: string;
+  provincia: string;
+  geohash: string;
+  nConferme: number;
+  creataDa: string;
+  /** Per unire i duplicati da admin. */
+  unitaA: string | null;
+  createdAt: Timestamp;
+};
+
+export type StrutturaConId = Struttura & { id: string };
 
 /** Eventi essenziali contati in Firestore (§12). Nessun analytics di terze parti. */
 export type TipoEvento =

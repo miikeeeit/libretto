@@ -1,20 +1,63 @@
 // L3 · Il mio libretto (home)
-// Settimana 1: l'intestazione del profilo e l'interruttore della disponibilità.
-// Le stagioni e i loro stati arrivano nella settimana 2 (§11).
+// I numeri in cima, l'interruttore della disponibilità, e le stagioni dalla più recente
+// con lo stato di ognuna.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { NOME_APP, STAGIONE_DISPONIBILITA } from '../config';
-import { nomeRuolo } from '../data/ruoli';
+import { nomeCompetenza, nomeRuolo } from '../data/ruoli';
 import { messaggioErrore } from '../lib/errori';
+import { formattaPeriodo } from '../lib/periodo';
+import { elencaStagioni, modificabile, riepiloga } from '../lib/stagioni';
 import { formattaTelefono } from '../lib/telefono';
+import type { StagioneConId, StatoStagione } from '../lib/tipi';
 import { impostaDisponibile, urlFoto } from '../lib/worker';
+
+const ETICHETTE: Record<StatoStagione, string> = {
+  bozza: 'Bozza',
+  in_attesa: 'In attesa',
+  confermata: 'Confermata',
+  non_confermata: 'Non confermata',
+  scaduta: 'Scaduta',
+};
+
+function numeri(stagioni: StagioneConId[]): string {
+  const r = riepiloga(stagioni);
+  if (r.nStagioni === 0) return 'Ancora nessuna stagione';
+
+  const pezzi = [r.nStagioni === 1 ? '1 stagione' : `${r.nStagioni} stagioni`];
+  if (r.nConfermate > 0) {
+    pezzi.push(r.nConfermate === 1 ? '1 confermata' : `${r.nConfermate} confermate`);
+  }
+  if (r.nRiprenderebbe > 0) {
+    pezzi.push(r.nRiprenderebbe === 1 ? '1 lo riprenderebbe' : `${r.nRiprenderebbe} lo riprenderebbero`);
+  }
+  return pezzi.join(' · ');
+}
 
 export default function Libretto() {
   const { utente, worker, ricaricaWorker, esci } = useAuth();
   const [foto, setFoto] = useState<string | null>(null);
+  const [stagioni, setStagioni] = useState<StagioneConId[] | null>(null);
   const [errore, setErrore] = useState<string | null>(null);
   const [inCorso, setInCorso] = useState(false);
+
+  const uid = utente?.uid;
+
+  const caricaStagioni = useCallback(async () => {
+    if (!uid) return;
+    try {
+      setStagioni(await elencaStagioni(uid));
+    } catch (e) {
+      setErrore(messaggioErrore(e));
+      setStagioni([]);
+    }
+  }, [uid]);
+
+  useEffect(() => {
+    void caricaStagioni();
+  }, [caricaStagioni]);
 
   useEffect(() => {
     if (!worker?.fotoPath) {
@@ -67,8 +110,7 @@ export default function Libretto() {
           <p className="sottotitolo">
             {nomeRuolo(worker.ruoloPrincipale)} · {worker.comune}
           </p>
-          {/* Settimana 2: qui vanno i numeri, es. "6 stagioni · 4 confermate · 3 lo riprenderebbero". */}
-          <p className="numeri">Ancora nessuna stagione</p>
+          <p className="numeri">{numeri(stagioni ?? [])}</p>
         </div>
       </section>
 
@@ -82,9 +124,7 @@ export default function Libretto() {
           />
           <span>
             <strong>Disponibile per la stagione {STAGIONE_DISPONIBILITA}</strong>
-            <span className="aiuto">
-              Chi apre il tuo link vede questo avviso. Puoi spegnerlo quando vuoi.
-            </span>
+            <span className="aiuto">Chi apre il tuo link vede questo avviso. Puoi spegnerlo quando vuoi.</span>
           </span>
         </label>
         {errore && (
@@ -94,18 +134,93 @@ export default function Libretto() {
         )}
       </section>
 
-      <section className="scheda scheda--in-arrivo">
+      <div className="testa-elenco">
         <h2>Le tue stagioni</h2>
+        <Link to="/stagione/nuova" className="bottone bottone--principale bottone--piccolo">
+          Aggiungi stagione
+        </Link>
+      </div>
+
+      {stagioni === null ? (
+        <p className="aiuto">Un momento…</p>
+      ) : stagioni.length === 0 ? (
+        <section className="scheda scheda--in-arrivo">
+          <p>
+            Comincia dall’ultima: la struttura, il ruolo, i mesi e cosa facevi. Poi chiederai la
+            conferma a chi ti ha visto lavorare.
+          </p>
+        </section>
+      ) : (
+        <ul className="elenco-stagioni">
+          {stagioni.map((s) => (
+            <li key={s.id} className={`stagione stagione--${s.stato}`}>
+              <div className="stagione__testa">
+                <h3>{s.strutturaNome}</h3>
+                <span className={`stato stato--${s.stato}`}>{ETICHETTE[s.stato]}</span>
+              </div>
+
+              <p className="sottotitolo">
+                {nomeRuolo(s.ruolo)} · {s.strutturaComune}
+              </p>
+              <p className="aiuto">{formattaPeriodo(s.dal, s.al)}</p>
+
+              {s.stato === 'confermata' && (
+                <p className="riga-conferma">
+                  Confermata{s.ruoloResponsabile ? ` dal ${s.ruoloResponsabile}` : ''}
+                  {s.riprenderebbe && <span className="badge">Lo riprenderebbe</span>}
+                </p>
+              )}
+
+              {s.competenzeConfermate.length > 0 ? (
+                <p className="competenze">
+                  <strong>Confermate:</strong>{' '}
+                  {s.competenzeConfermate.map((c) => nomeCompetenza(c)).join(' · ')}
+                </p>
+              ) : (
+                s.competenzeDichiarate.length > 0 && (
+                  <p className="competenze competenze--dichiarate">
+                    {s.competenzeDichiarate.map((c) => nomeCompetenza(c)).join(' · ')}
+                  </p>
+                )
+              )}
+
+              {s.stato === 'non_confermata' && (
+                <p className="aiuto">
+                  Il responsabile dice che i dati non corrispondono. Questa riga la vedi solo tu:
+                  correggila e richiedi la conferma, oppure cancellala.
+                </p>
+              )}
+
+              <div className="stagione__azioni">
+                {(s.stato === 'bozza' || s.stato === 'non_confermata' || s.stato === 'scaduta') && (
+                  <button type="button" className="bottone bottone--secondario bottone--piccolo" disabled>
+                    {s.stato === 'bozza' ? 'Chiedi la conferma' : 'Rimanda la richiesta'}
+                  </button>
+                )}
+                {modificabile(s.stato) && (
+                  <Link to={`/stagione/${s.id}`} className="bottone-testo">
+                    Correggi
+                  </Link>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <section className="scheda scheda--in-arrivo">
+        <h2>Il prossimo passo</h2>
         <p>
-          Il prossimo passo è questo: aggiungi una stagione e chiedi la conferma a chi ti ha visto
-          lavorare. Arriva la settimana prossima.
+          Chiedere la conferma: mandi il link dal tuo WhatsApp a chi ti ha visto lavorare, e chi lo
+          riceve verifica il proprio numero e conferma con un tap. Arriva la settimana prossima,
+          insieme alla tua pagina pubblica.
         </p>
       </section>
 
       <footer className="piede">
         <p className="aiuto">
-          Entri con il {formattaTelefono(worker.telefono || utente.phoneNumber || '')}. Il tuo indirizzo
-          pubblico sarà <code>/p/{worker.slug}</code>.
+          Entri con il {formattaTelefono(worker.telefono || utente.phoneNumber || '')}. Il tuo
+          indirizzo pubblico sarà <code>/p/{worker.slug}</code>.
         </p>
         <button type="button" className="bottone-testo" onClick={() => void esci()}>
           Esci da {NOME_APP}

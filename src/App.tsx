@@ -1,6 +1,7 @@
 // Le rotte della §10. Chi è collegato e ha un profilo va al suo libretto,
 // chi è collegato ma non ha ancora un profilo va a crearlo, gli altri all'accesso.
 
+import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthProvider';
 import Accesso from './pages/Accesso';
@@ -8,6 +9,7 @@ import ComeFunziona from './pages/ComeFunziona';
 import CreaProfilo from './pages/CreaProfilo';
 import InArrivo from './pages/InArrivo';
 import Libretto from './pages/Libretto';
+import NuovaStagione from './pages/NuovaStagione';
 import Privacy from './pages/Privacy';
 
 function Attesa() {
@@ -16,6 +18,15 @@ function Attesa() {
       <p className="aiuto">Un momento…</p>
     </main>
   );
+}
+
+/** Le schermate del libretto vogliono un profilo: senza, si passa da L1 o da L2. */
+function ConProfilo({ children }: { children: ReactNode }) {
+  const { utente, worker } = useAuth();
+  if (utente === undefined || (utente !== null && worker === undefined)) return <Attesa />;
+  if (!utente) return <Navigate to="/" replace />;
+  if (!worker) return <Navigate to="/profilo/nuovo" replace />;
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -49,24 +60,34 @@ export default function App() {
 
       <Route
         path="/"
-        element={
-          inCaricamento ? <Attesa /> : utente ? <Navigate to="/libretto" replace /> : <Accesso />
-        }
+        element={inCaricamento ? <Attesa /> : utente ? <Navigate to="/libretto" replace /> : <Accesso />}
       />
+
       <Route
         path="/libretto"
         element={
-          inCaricamento ? (
-            <Attesa />
-          ) : !utente ? (
-            <Navigate to="/" replace />
-          ) : worker ? (
+          <ConProfilo>
             <Libretto />
-          ) : (
-            <Navigate to="/profilo/nuovo" replace />
-          )
+          </ConProfilo>
         }
       />
+      <Route
+        path="/stagione/nuova"
+        element={
+          <ConProfilo>
+            <NuovaStagione />
+          </ConProfilo>
+        }
+      />
+      <Route
+        path="/stagione/:id"
+        element={
+          <ConProfilo>
+            <NuovaStagione />
+          </ConProfilo>
+        }
+      />
+
       <Route
         path="/profilo/nuovo"
         element={

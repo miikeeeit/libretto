@@ -180,13 +180,17 @@ service cloud.firestore {
       allow read: if true;
       allow create: if autenticato()
         && request.resource.data.keys().hasOnly([
-          'nome', 'nomeNormalizzato', 'comune', 'provincia', 'geohash', 'nConferme',
+          'nome', 'nomeNormalizzato', 'parole', 'comune', 'provincia', 'geohash', 'nConferme',
           'creataDa', 'unitaA', 'createdAt'
         ])
         && request.resource.data.nome is string
         && request.resource.data.nome.size() >= 2
         && request.resource.data.nome.size() <= 120
+        && request.resource.data.nomeNormalizzato is string
+        && request.resource.data.parole is list
+        && request.resource.data.parole.size() <= 12
         && request.resource.data.comune is string
+        && request.resource.data.comune.size() <= 60
         && request.resource.data.nConferme == 0
         && request.resource.data.unitaA == null
         && request.resource.data.creataDa == request.auth.uid;
