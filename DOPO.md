@@ -15,3 +15,4 @@ Una riga per idea, con il motivo per cui è rimandata.
 
 - **Comuni fuori dalla provincia di Latina** — l'elenco della v1 è quello della provincia (L2). Estendere quando arriva il primo collega di fuori: il file `src/data/comuni.ts` è già fatto per crescere.
 - **Badge "responsabile noto" in pubblico** — la specifica (§8.3) dice esplicitamente che nella v1 il flag `verificatoAdmin` serve solo ai controlli di Mike, non alla pagina pubblica.
+- **Alleggerire il pacchetto JavaScript** — oggi sono 705 kB (184 kB compressi), quasi tutti SDK Firebase: su una 3G di fine agosto si sente, e chi apre un profilo da un annuncio è proprio chi ha la rete peggiore. Si può caricare Firestore e Storage solo quando servono e tenere leggera la pagina pubblica, che è quella che deve aprirsi in fretta. Rimandato perché non è nella specifica e perché prima va misurato sul telefono vero, non stimato.
