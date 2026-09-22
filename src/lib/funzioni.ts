@@ -63,3 +63,14 @@ export const revocaConferma = httpsCallable<{ token: string }, { ok: boolean }>(
   funzioni,
   'revocaConferma',
 );
+
+/** Il CV è privato: la pagina pubblica ne ottiene un indirizzo firmato che scade (§10). */
+export const urlCv = httpsCallable<{ slug: string }, { url: string; scadeFraMinuti: number }>(
+  funzioni,
+  'urlCv',
+);
+
+export const eliminaAccount = httpsCallable<{ conferma: 'ELIMINA' }, { ok: boolean }>(
+  funzioni,
+  'eliminaAccount',
+);

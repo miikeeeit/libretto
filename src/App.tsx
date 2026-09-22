@@ -9,9 +9,10 @@ import ChiediConferma from './pages/ChiediConferma';
 import ComeFunziona from './pages/ComeFunziona';
 import Conferma from './pages/Conferma';
 import CreaProfilo from './pages/CreaProfilo';
-import InArrivo from './pages/InArrivo';
+import Impostazioni from './pages/Impostazioni';
 import Libretto from './pages/Libretto';
 import NuovaStagione from './pages/NuovaStagione';
+import PaginaPubblica from './pages/PaginaPubblica';
 import Privacy from './pages/Privacy';
 
 function Attesa() {
@@ -43,16 +44,8 @@ export default function App() {
       {/* C1–C4: la conferma del responsabile. Nessun account, solo il suo telefono. */}
       <Route path="/c/:token" element={<Conferma />} />
 
-      {/* Settimana 4: la pagina pubblica. */}
-      <Route
-        path="/p/:slug"
-        element={
-          <InArrivo
-            titolo="Questa pagina non è ancora attiva"
-            testo="I profili pubblici si aprono tra poco."
-          />
-        }
-      />
+      {/* P1: il profilo pubblico, l'unica pagina che vedrà un datore. */}
+      <Route path="/p/:slug" element={<PaginaPubblica />} />
 
       <Route
         path="/"
@@ -88,6 +81,15 @@ export default function App() {
         element={
           <ConProfilo>
             <ChiediConferma />
+          </ConProfilo>
+        }
+      />
+
+      <Route
+        path="/impostazioni"
+        element={
+          <ConProfilo>
+            <Impostazioni />
           </ConProfilo>
         }
       />

@@ -6,10 +6,10 @@ La specifica è in [`SPEC.md`](SPEC.md) e vale come riferimento: quello che non 
 costruisce prima di dicembre. Le decisioni prese stanno in [`DECISIONI.md`](DECISIONI.md), le idee
 rimandate in [`DOPO.md`](DOPO.md).
 
-**Stato: settimane 1, 2 e 3 fatte** — accesso col telefono, profilo, stagioni e strutture, e la
-conferma del responsabile con le Cloud Functions (L1–L5, C1–C4). Criteri della §11 soddisfatti:
-ti registri e vedi il tuo profilo, aggiungi le tue stagioni, e un responsabile te ne conferma una
-dal suo telefono.
+**Stato: settimane 1–4 fatte.** L'app è completa nel suo giro: accesso col telefono, profilo,
+stagioni, conferma del responsabile, pagina pubblica, privacy, CV e cancellazione dell'account
+(L1–L6, C1–C4, P1). Criteri della §11 soddisfatti, compreso quello della settimana 4: apri il tuo
+link dal telefono di un altro e vedi solo quello che devi vedere.
 
 ---
 
@@ -97,8 +97,8 @@ commento su cosa aggiungere.
 
 ```sh
 npm run lint            # i tipi
-npm test                # le regole di sicurezza: 54 prove, sull'emulatore
-npm run prova:flusso    # i 16 passaggi del flusso vero in un browser
+npm test                # le regole di sicurezza: 55 prove, sull'emulatore
+npm run prova:flusso    # i 23 passaggi del flusso vero in un browser
                         # (vuole emulatori + dev avviati)
 ```
 
@@ -132,15 +132,16 @@ src/
   lib/               Firebase, telefono, geohash, inviti, profilo, stagioni, strutture,
                      periodo, funzioni, eventi, errori
   pages/             L1 accesso, L2 crea profilo, L3 libretto, L4 stagione,
-                     L5 chiedi conferma, C1-C4 conferma, privacy, come funziona
-functions/src/       le funzioni lato server: richieste.ts, conferme.ts
+                     L5 chiedi conferma, L6 impostazioni, C1-C4 conferma,
+                     P1 pagina pubblica, privacy, come funziona
+functions/src/       le funzioni lato server: richieste.ts, conferme.ts, profilo.ts
 firestore.rules      chi può scrivere cosa: è qui che vive la fiducia
 storage.rules        foto pubbliche, CV privati
 test/regole.test.mjs le prove delle regole
 strumenti/           inviti per l'emulatore, prova del flusso in browser
 ```
 
-Quattro scelte che vale la pena sapere prima di leggere il codice:
+Sei scelte che vale la pena sapere prima di leggere il codice:
 
 - **L'indirizzo pubblico si prenota prima del profilo.** `slugs/{slug}` si può creare ma non
   modificare: chi arriva secondo su `mario-rossi-4f2a` viene fermato dalle regole. È così che due
@@ -158,6 +159,16 @@ Quattro scelte che vale la pena sapere prima di leggere il codice:
   intera, perché chi ha lavorato al Bar Somma scrive «somma», non «bar». Se la stessa struttura
   finisce nel database tre volte scritta in tre modi, «confermata da 3 strutture» diventa una
   bugia, e quel numero è metà del valore di Libretto.
+- **La pagina pubblica non filtra niente.** Legge un documento, `profiliPubblici/{slug}`, che una
+  Cloud Function ha già scritto secondo le impostazioni di privacy. Se un domani si sbaglia una
+  riga in quella pagina, il peggio che può succedere è che non si veda qualcosa: mai che si veda
+  qualcosa di privato, perché quel dato nel documento non c'è. Due piccole differenze dalla §6,
+  volute: si salva `fotoPath` invece di `fotoUrl` (l'indirizzo lo risolve la pagina, così vale
+  uguale in locale e online) e `haCv` invece di `cvUrl`, perché l'indirizzo del CV deve essere
+  temporaneo e lo dà la funzione `urlCv` al momento della richiesta.
+- **Una stagione confermata si può solo nascondere.** Le regole non lasciano cambiarle nient'altro,
+  nemmeno riportandola in bozza: i dati di una conferma devono restare attaccati alla stagione per
+  cui quella conferma è arrivata.
 
 ## 8. Cosa manca (§11)
 
@@ -166,6 +177,6 @@ Quattro scelte che vale la pena sapere prima di leggere il codice:
 | 1 | Accesso col telefono, profilo (L1–L2) | fatto |
 | 2 | Stagioni e strutture (L3–L4), liste §7 | fatto |
 | 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | fatto |
-| 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | **da fare** |
-| 5 | Informativa, anti-frode §8, test di rottura | da fare — PC4 e PC5 |
+| 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | fatto |
+| 5 | Informativa, anti-frode §8, test di rottura | **da fare — PC4 e PC5** |
 | 6 | Beta chiusa con 3 colleghi | da fare |

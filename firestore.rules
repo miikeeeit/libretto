@@ -157,16 +157,34 @@ service cloud.firestore {
           ]);
         }
 
+        // Nascondere una stagione è un'atto di privacy (§1, regola 3), non una modifica
+        // dei dati: deve funzionare sempre, anche su una stagione già confermata, che
+        // per il resto è intoccabile. Cambiando solo questo campo non si può falsare
+        // nessuna conferma.
+        function soloNascondere() {
+          return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nascosta', 'updatedAt']);
+        }
+
         allow read: if proprietario(uid);
 
         allow create: if proprietario(uid)
           && formaStagione(request.resource.data)
           && nienteCampiDiFiducia(request.resource.data);
 
+        // Su una stagione confermata si può fare **solo** una cosa: nasconderla.
+        // Senza questo, si poteva riportarla in bozza tenendosi addosso le competenze
+        // confermate e il ruolo del responsabile, e poi cambiarle struttura e periodo:
+        // dati di una conferma attaccati a una stagione che non è più quella.
         allow update: if proprietario(uid)
           && formaStagione(request.resource.data)
-          && soloCampiSuoi()
-          && request.resource.data.stato in ['bozza', 'in_attesa'];
+          && (
+            soloNascondere()
+            || (
+              resource.data.stato != 'confermata'
+              && soloCampiSuoi()
+              && request.resource.data.stato in ['bozza', 'in_attesa']
+            )
+          );
 
         // Una stagione si può cancellare sempre: è roba sua (§1, regola 3).
         allow delete: if proprietario(uid);

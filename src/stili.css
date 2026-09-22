@@ -574,6 +574,65 @@ code {
   padding: 0 8px;
 }
 
+/* ---------- pagina pubblica (P1) ---------- */
+
+.riga-bottoni {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.badge--grande {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  padding: 7px 14px;
+}
+
+.bottone--pericolo {
+  background: var(--rosso);
+  color: #fff;
+}
+
+.titoletto {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--inchiostro-tenue);
+  margin: 10px 0 0;
+}
+
+/* Confermate e dichiarate non si mescolano mai: è la domanda a cui un datore vuole
+   rispondere in due secondi. */
+.etichette {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.etichetta {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--bordo);
+  color: var(--inchiostro-tenue);
+}
+
+.etichetta--confermata {
+  border: 1px solid transparent;
+  background: var(--verde-chiaro);
+  color: var(--verde);
+  font-weight: 600;
+}
+
+.conteggio {
+  font-weight: 400;
+  opacity: 0.85;
+}
+
 .anteprima-messaggio {
   margin: 0;
   padding: 12px 14px;

@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { NOME_APP, STAGIONE_DISPONIBILITA } from '../config';
 import { nomeCompetenza, nomeRuolo } from '../data/ruoli';
 import { messaggioErrore } from '../lib/errori';
+import { registraEvento } from '../lib/eventi';
 import { formattaPeriodo } from '../lib/periodo';
 import { elencaStagioni, modificabile, riepiloga } from '../lib/stagioni';
 import { formattaTelefono } from '../lib/telefono';
@@ -42,6 +43,7 @@ export default function Libretto() {
   const [stagioni, setStagioni] = useState<StagioneConId[] | null>(null);
   const [errore, setErrore] = useState<string | null>(null);
   const [inCorso, setInCorso] = useState(false);
+  const [condiviso, setCondiviso] = useState(false);
 
   const uid = utente?.uid;
 
@@ -89,6 +91,24 @@ export default function Libretto() {
       setErrore(messaggioErrore(e));
     } finally {
       setInCorso(false);
+    }
+  }
+
+  /** Sul telefono si apre la condivisione di sistema, sul resto si copia il link. */
+  async function condividi() {
+    const url = `${window.location.origin}/p/${worker!.slug}`;
+    const testo = `Il mio libretto di lavoro: ${url}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: NOME_APP, text: testo, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCondiviso(true);
+        setTimeout(() => setCondiviso(false), 2500);
+      }
+      await registraEvento('profilo_condiviso', utente!.uid);
+    } catch {
+      // Condivisione annullata: non è un errore da mostrare.
     }
   }
 
@@ -211,18 +231,37 @@ export default function Libretto() {
         </ul>
       )}
 
-      <section className="scheda scheda--in-arrivo">
-        <h2>Il prossimo passo</h2>
-        <p>
-          La tua pagina pubblica, quella che mandi a un datore: arriva la settimana prossima, con le
-          stagioni confermate separate da quelle che hai solo dichiarato.
+      <section className="scheda">
+        <h2>Il tuo link</h2>
+        <p className="aiuto">
+          È questo che mandi a un datore. Vede le stagioni confermate, separate da quelle che hai
+          solo dichiarato, e non vede il tuo numero se non lo accendi tu.
         </p>
+        <div className="riga-bottoni">
+          <Link to={`/p/${worker.slug}`} className="bottone bottone--secondario bottone--piccolo">
+            Vedi la mia pagina
+          </Link>
+          <button
+            type="button"
+            className="bottone bottone--principale bottone--piccolo"
+            onClick={() => void condividi()}
+          >
+            {condiviso ? 'Link copiato' : 'Condividi il link'}
+          </button>
+        </div>
+        {!worker.privacy.pubblico && (
+          <p className="errore">
+            Il tuo link è spento: chi lo apre non vede niente. Lo riaccendi dalle impostazioni.
+          </p>
+        )}
       </section>
 
       <footer className="piede">
+        <Link to="/impostazioni" className="bottone-testo">
+          Impostazioni e privacy
+        </Link>
         <p className="aiuto">
-          Entri con il {formattaTelefono(worker.telefono || utente.phoneNumber || '')}. Il tuo
-          indirizzo pubblico sarà <code>/p/{worker.slug}</code>.
+          Entri con il {formattaTelefono(worker.telefono || utente.phoneNumber || '')}.
         </p>
         <button type="button" className="bottone-testo" onClick={() => void esci()}>
           Esci da {NOME_APP}

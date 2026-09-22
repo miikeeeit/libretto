@@ -18,6 +18,7 @@ const BASE = process.env.LIBRETTO_BASE ?? 'http://127.0.0.1:5173';
 const PROGETTO = process.env.LIBRETTO_PROGETTO ?? 'libretto-prova';
 const FIRESTORE = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
 const AUTH = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
+const FUNZIONI = process.env.LIBRETTO_FUNZIONI ?? '127.0.0.1:5001';
 const CARTELLA = process.env.LIBRETTO_SCHERMATE ?? null;
 const INVITO = 'prova-2026';
 
@@ -76,6 +77,41 @@ async function telefonoDelResponsabile(chi = 'responsabile') {
   return guarda(await contesto.newPage(), chi);
 }
 
+/**
+ * La pagina pubblica la ricostruisce una Cloud Function dopo la scrittura, quindi non è
+ * pronta nell'istante in cui si cambia un'impostazione: si ricarica finché non lo è.
+ */
+async function aspettaChe(pagina, condizione, descrizione, tentativi = 15) {
+  for (let i = 0; i < tentativi; i += 1) {
+    await pagina.reload({ waitUntil: 'load' });
+    await pagina.waitForTimeout(500);
+    if (await condizione(pagina)) return;
+  }
+  throw new Error(`Non è cambiato come doveva: ${descrizione}`);
+}
+
+async function testoDi(pagina) {
+  return (await pagina.locator('body').innerText()).replace(/\s+/g, ' ');
+}
+
+/**
+ * Confronto senza distinguere maiuscole e minuscole: alcune etichette sono scritte in
+ * maiuscolo dal CSS, e quello che conta è che la frase ci sia.
+ */
+function contiene(testo, frase) {
+  return testo.toLowerCase().includes(frase.toLowerCase());
+}
+
+/** Un PDF minimo ma valido, per provare il caricamento del CV. */
+function pdfFinto() {
+  return Buffer.from(
+    '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
+      '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
+      '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n' +
+      'trailer<</Root 1 0 R>>\n%%EOF\n',
+  );
+}
+
 let passi = 0;
 function fatto(testo) {
   passi += 1;
@@ -118,7 +154,7 @@ try {
   // ---- L3: il mio libretto -------------------------------------------------
   await page.getByRole('heading', { name: 'Mario Rossi' }).waitFor({ timeout: 20000 });
   const sottotitolo = await page.locator('.sottotitolo').innerText();
-  const indirizzo = await page.locator('.piede code').innerText();
+  const indirizzo = await page.getByRole('link', { name: 'Vedi la mia pagina' }).getAttribute('href');
   fatto(`profilo creato: ${sottotitolo}, indirizzo pubblico ${indirizzo}`);
 
   await page.getByText(/Disponibile per la stagione/).click();
@@ -318,9 +354,157 @@ try {
   await schermata(page, '11-libretto-confermato');
   fatto(`il libretto vede la conferma: ${numeriFinali}`);
 
+  // ---- P1: la pagina pubblica, dal telefono di un altro --------------------
+  // Il criterio della settimana 4: «apri il tuo link dal telefono di un altro e vedi
+  // solo quello che devi vedere». Il datore non è collegato e non ha niente a che fare
+  // con Libretto.
+  const indirizzoPubblico = await page
+    .getByRole('link', { name: 'Vedi la mia pagina' })
+    .getAttribute('href');
+  const slug = (indirizzoPubblico ?? '').replace('/p/', '');
+  if (!slug) throw new Error('Non trovo il link della pagina pubblica in L3.');
+  const datore = await telefonoDelResponsabile('datore');
+  await datore.goto(`${BASE}/p/${slug}`, { waitUntil: 'load' });
+  await datore.getByRole('heading', { name: 'Mario Rossi' }).waitFor({ timeout: 20000 });
+
+  let pubblica = await testoDi(datore);
+  if (!contiene(pubblica, '1 stagione confermata da 1 struttura')) {
+    throw new Error(`Riepilogo pubblico inatteso: "${pubblica}"`);
+  }
+  if (!contiene(pubblica, 'Confermata dal titolare') || !contiene(pubblica, 'Lo riprenderebbe')) {
+    throw new Error('La stagione confermata non è mostrata come si deve.');
+  }
+  if (!contiene(pubblica, 'Cassa e chiusura di cassa')) {
+    throw new Error('La competenza confermata non compare in pubblico.');
+  }
+  // Quello che NON si deve vedere: il telefono (spento per default), le stagioni in
+  // bozza, e il nome di chi ha confermato.
+  if (contiene(pubblica, 'Contatta su WhatsApp')) throw new Error('Il telefono è visibile senza averlo acceso.');
+  if (contiene(pubblica, 'Ciro')) throw new Error('Il nome del responsabile è finito in pubblico.');
+  if (contiene(pubblica, 'Cucina')) throw new Error('Una stagione in bozza è visibile in pubblico.');
+  const sorgentePubblica = await datore.content();
+  if (sorgentePubblica.includes('3471234567') || sorgentePubblica.includes('347 123 4567')) {
+    throw new Error('Il numero del lavoratore è arrivato nella pagina pubblica.');
+  }
+  await schermata(datore, '12-pagina-pubblica');
+  fatto('la pagina pubblica mostra le conferme e tiene nascosto il resto');
+
+  // ---- L6: gli interruttori della privacy ----------------------------------
+  await page.getByRole('link', { name: 'Impostazioni e privacy' }).click();
+  await page.getByRole('heading', { name: 'Impostazioni e privacy' }).waitFor({ timeout: 20000 });
+  await page.getByText('Mostra il mio numero').click();
+  await aspettaChe(
+    datore,
+    async (p) => contiene(await testoDi(p), 'Contatta su WhatsApp'),
+    'il numero acceso deve far comparire il pulsante WhatsApp',
+  );
+  fatto('accendendo «mostra il mio numero» compare il pulsante WhatsApp');
+
+  // Nascondere la stagione confermata la toglie dalla pagina, non dal libretto.
+  await page.getByText('Bar Somma · Bar').click();
+  await aspettaChe(
+    datore,
+    async (p) => !contiene(await testoDi(p), 'Confermata dal titolare'),
+    'la stagione nascosta deve sparire dalla pagina pubblica',
+  );
+  const senzaStagione = await testoDi(datore);
+  if (!contiene(senzaStagione, 'Nessuna stagione confermata')) {
+    throw new Error(`Riepilogo inatteso dopo aver nascosto: "${senzaStagione}"`);
+  }
+  await page.getByText('Bar Somma · Bar').click();
+  await aspettaChe(
+    datore,
+    async (p) => contiene(await testoDi(p), 'Confermata dal titolare'),
+    'rimostrando la stagione deve ricomparire',
+  );
+  fatto('nascondere e rimostrare una stagione funziona in entrambi i versi');
+
+  // Il CV: privato, con un indirizzo che scade.
+  await page.locator('#cv').setInputFiles({ name: 'cv.pdf', mimeType: 'application/pdf', buffer: pdfFinto() });
+  await page.getByText('Mostra il CV sul mio profilo').waitFor({ timeout: 20000 });
+  await page.getByText('Mostra il CV sul mio profilo').click();
+  await aspettaChe(
+    datore,
+    async (p) => contiene(await testoDi(p), 'Scarica il CV'),
+    'il CV acceso deve comparire in pubblico',
+  );
+  // Il pulsante c'è. Che il file sia davvero raggiungibile solo passando dal server si
+  // prova chiamando la funzione direttamente: in un browser un PDF diventa un download,
+  // e si finirebbe a provare Chromium invece di Libretto.
+  const rispostaCv = await fetch(`http://${FUNZIONI}/${PROGETTO}/europe-west8/urlCv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: { slug } }),
+  });
+  const indirizzoCv = (await rispostaCv.json())?.result?.url;
+  if (!indirizzoCv || !/cv(%2F|\/)/i.test(indirizzoCv)) {
+    throw new Error(`Indirizzo del CV inatteso: ${indirizzoCv}`);
+  }
+  if (!(await fetch(indirizzoCv)).ok) throw new Error('Il CV non si scarica da quell’indirizzo.');
+
+  // Lo stesso file, senza il permesso dato dal server, non si deve poter leggere: il CV
+  // è privato, a differenza della foto (§10).
+  const senzaPermesso = await fetch(indirizzoCv.split(/[?&]token=/)[0]);
+  if (senzaPermesso.ok) throw new Error('Il CV si legge anche senza passare dal server.');
+  fatto('il CV si scarica solo dall’indirizzo dato dal server, non a mano');
+
+  // Il link spento: la pagina non è più disponibile per nessuno.
+  await page.getByText('Il mio link funziona').click();
+  await aspettaChe(
+    datore,
+    async (p) => contiene(await testoDi(p), 'Questa pagina non è disponibile'),
+    'spegnendo il link la pagina deve sparire',
+  );
+  await schermata(datore, '13-link-spento');
+  await page.getByText('Il mio link funziona').click();
+  await aspettaChe(
+    datore,
+    async (p) => contiene(await testoDi(p), 'Mario Rossi'),
+    'riaccendendo il link la pagina deve tornare',
+  );
+  fatto('spegnendo il link la pagina pubblica sparisce, e riaccendendolo torna');
+
+  // Esportazione dei dati.
+  const [scaricato] = await Promise.all([
+    page.waitForEvent('download', { timeout: 20000 }),
+    page.getByRole('button', { name: 'Scarica i miei dati' }).click(),
+  ]);
+  if (!scaricato.suggestedFilename().startsWith('libretto-')) {
+    throw new Error(`Nome del file inatteso: ${scaricato.suggestedFilename()}`);
+  }
+  fatto(`i dati si scaricano: ${scaricato.suggestedFilename()}`);
+
+  // ---- L6: eliminare l'account -------------------------------------------
+  // §1, regola 3: con un tap sparisce tutto. È la prova che la promessa è vera.
+  await page.getByRole('button', { name: 'Voglio eliminare il mio account' }).click();
+  await page.getByLabel('Scrivi ELIMINA').fill('ELIMINA');
+  await page.getByRole('button', { name: 'Elimina tutto' }).click();
+  await page.getByRole('heading', { name: 'Entra col tuo numero' }).waitFor({ timeout: 40000 });
+
+  await aspettaChe(
+    datore,
+    async (p) => contiene(await testoDi(p), 'Questa pagina non è disponibile'),
+    'dopo l’eliminazione il link pubblico non deve funzionare',
+  );
+
+  // E nel database non resta niente di suo.
+  const rimasti = await fetch(
+    `http://${FIRESTORE}/v1/projects/${PROGETTO}/databases/(default)/documents/workers`,
+    { headers: { Authorization: 'Bearer owner' } },
+  ).then((r) => r.json());
+  if ((rimasti.documents ?? []).length !== 0) throw new Error('Il profilo è ancora nel database.');
+
+  const confermeRimaste = await fetch(
+    `http://${FIRESTORE}/v1/projects/${PROGETTO}/databases/(default)/documents/conferme`,
+    { headers: { Authorization: 'Bearer owner' } },
+  ).then((r) => r.json());
+  if ((confermeRimaste.documents ?? []).length !== 0) {
+    throw new Error('Le conferme ricevute sono ancora nel database.');
+  }
+  fatto('eliminando l’account sparisce tutto: profilo, conferme e pagina pubblica');
+
   // ---- Il codice di invito è bruciato --------------------------------------
-  await page.getByRole('button', { name: /Esci da Libretto/ }).click();
-  await page.getByRole('heading', { name: 'Entra col tuo numero' }).waitFor({ timeout: 20000 });
+  // Dopo l'eliminazione si è già fuori: si prova a rientrare con lo stesso invito.
   await accedi('348 999 8877');
   const avviso = await page.locator('.errore').innerText({ timeout: 20000 });
   if (!avviso.includes('già stato usato')) throw new Error(`Avviso inatteso: "${avviso}"`);

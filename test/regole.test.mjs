@@ -353,6 +353,43 @@ describe('stagioni', () => {
     );
   });
 
+  it('una stagione confermata si può nascondere, ma non modificare', async () => {
+    // Nascondere è privacy (§1, regola 3) e deve funzionare sempre; cambiare i dati di
+    // una stagione confermata no, altrimenti la conferma non varrebbe niente.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ...percorso, 'giaConfermata'),
+        stagione({
+          stato: 'confermata',
+          competenzeConfermate: ['sala.palmare'],
+          riprenderebbe: true,
+          ruoloResponsabile: 'titolare',
+        }),
+      );
+    });
+
+    await assertSucceeds(
+      updateDoc(doc(comeMario(), ...percorso, 'giaConfermata'), { nascosta: true, updatedAt: new Date() }),
+    );
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'giaConfermata'), { strutturaNome: 'Un altro posto' }),
+    );
+    // Nascondere e insieme toccare un campo di fiducia non passa: i valori qui sono
+    // diversi da quelli salvati, quindi è una modifica vera, non una scrittura a vuoto.
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'giaConfermata'), { nascosta: false, riprenderebbe: false }),
+    );
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'giaConfermata'), {
+        nascosta: false,
+        competenzeConfermate: ['sala.palmare', 'sala.rango'],
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'giaConfermata'), { nascosta: false, stato: 'bozza' }),
+    );
+  });
+
   it('i propri dati si correggono e si nascondono', async () => {
     await assertSucceeds(
       updateDoc(doc(comeMario(), ...percorso, 'esistente'), {
