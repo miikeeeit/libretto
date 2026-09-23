@@ -19,6 +19,8 @@ Le decisioni che spettano a Mike, con la data in cui le ha prese. I punti di con
 
 ## Cose da ricordare a Mike
 
+- **Adesso, prima di tutto il resto (PC5)**: far rivedere l'informativa e la base giuridica da un professionista. È la cosa con i tempi più lunghi e non dipende da te: la bozza in `/privacy` si può mandare così com'è. Servono due tue decisioni per completarla: **chi è il titolare del trattamento** (tu come persona fisica o una ditta) e **quale email** usare per le richieste privacy — in `src/config.ts` oggi c'è un segnaposto.
+
 - **Settimana 1**: impostare l'avviso di budget su Blaze prima di provare l'accesso con un telefono vero.
 - **Settimana 2**: gli id delle competenze si possono ancora cambiare senza perdere niente. Dopo le prime conferme vere, no.
 - **Settimana 5**: nome definitivo e dominio.

@@ -320,7 +320,7 @@ Una frode resta sempre possibile. L'obiettivo della v1 è renderla scomoda e vis
 - **Dati del responsabile**: si salvano solo il telefono (per la verifica) e il ruolo. Il nome inserito dal lavoratore serve solo per il messaggio e **non appare mai in pubblico**. Il responsabile dà il consenso alla pubblicazione della sua conferma quando conferma, con una casella chiara: "La mia conferma, senza il mio nome, sarà visibile sul profilo di {nome}".
 - **Giudizi**: si salvano solo quelli positivi. Nessun campo "non lo riprenderei".
 - **Diritti**: esportazione (L6), cancellazione (L6), revoca della conferma da parte del responsabile (C4, entro 30 giorni; dopo, scrivendo all'email privacy).
-- **Conservazione**: le richieste scadute si cancellano dopo 90 giorni; gli account inattivi da 3 anni ricevono un avviso e poi vengono cancellati.
+- **Conservazione**: le richieste **chiuse** (usate, scadute o revocate) si cancellano dopo 90 giorni, e con loro il nome e il telefono del responsabile; lo fa la pianificata `pulizia` ogni notte. Un link non usato scade dopo 30 giorni. Gli account inattivi da 3 anni ricevono un avviso e poi vengono cancellati — non implementato: il primo caso possibile è nel 2029 e serve leggere l'ultimo accesso da Firebase Auth.
 - **Tracciamento**: nessuno strumento di analytics di terze parti nella v1, quindi niente banner dei cookie. Si contano solo gli eventi essenziali (vedi §12) in Firestore.
 - **Dati in UE**: la regione Firestore e Storage in Europa (§6).
 - **Pagine**: `/privacy` (informativa) e `/come-funziona`.

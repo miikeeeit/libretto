@@ -19,6 +19,7 @@ import {
   testoRichiesto,
   VERSIONE_CONSENSO,
 } from './comune';
+import { ricostruisciProfiloPubblico } from './profilo';
 
 type Richiesta = {
   workerUid: string;
@@ -60,6 +61,31 @@ async function richiestaPerChiamante(token: string, telefono: string, statoAttes
   return { ref, richiesta };
 }
 
+/**
+ * Chiude un link scaduto e riporta la stagione al lavoratore come «scaduta», così può
+ * rimandarla da L3.
+ *
+ * Senza l'aggiornamento della stagione restava «in attesa» per sempre: la richiesta era
+ * già chiusa qui, e la pulizia notturna — che cerca solo le richieste ancora aperte —
+ * non la guardava più. Il lavoratore avrebbe aspettato una risposta che non poteva più
+ * arrivare, senza nemmeno il pulsante per rimandare.
+ */
+async function chiudiPerScadenza(
+  richiestaRef: ReturnType<typeof db.doc>,
+  richiesta: Richiesta,
+  token: string,
+): Promise<void> {
+  const stagioneRef = db.doc(`workers/${richiesta.workerUid}/stagioni/${richiesta.stagioneId}`);
+  const stagione = await stagioneRef.get();
+
+  const lotto = db.batch();
+  lotto.update(richiestaRef, { stato: 'scaduta' });
+  if (stagione.exists && stagione.data()?.richiestaId === token) {
+    lotto.update(stagioneRef, { stato: 'scaduta', updatedAt: FieldValue.serverTimestamp() });
+  }
+  await lotto.commit();
+}
+
 export const confermaStagione = onCall(async (chiamata) => {
   const telefono = telefonoDiChiChiama(chiamata.auth);
   const responsabileUid = chiamata.auth!.uid;
@@ -83,7 +109,7 @@ export const confermaStagione = onCall(async (chiamata) => {
   const { ref: richiestaRef, richiesta } = await richiestaPerChiamante(token, telefono, 'aperta');
 
   if (richiesta.scadeIl.toMillis() < Date.now()) {
-    await richiestaRef.update({ stato: 'scaduta' });
+    await chiudiPerScadenza(richiestaRef, richiesta, token);
     throw new HttpsError('failed-precondition', 'Questo link è scaduto.');
   }
 
@@ -286,6 +312,10 @@ export const segnalaStagione = onCall(async (chiamata) => {
         nSegnalazioni: segnalazioni.data().count,
         createdAt: adesso(),
       });
+      // La sospensione deve togliere subito il profilo dalla rete: il trigger di
+      // `pubblicaProfilo` non scatta, perché la sospensione non è scritta né nel
+      // profilo né nelle stagioni.
+      await ricostruisciProfiloPubblico(richiesta.workerUid);
     }
   }
 

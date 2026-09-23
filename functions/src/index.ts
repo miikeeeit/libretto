@@ -1,9 +1,10 @@
-// Le funzioni lato server della v1 (§10).
+// Tutte le funzioni lato server della v1 (§10).
 //
-// Settimana 3: richieste e conferme.
-// Settimana 4: profilo pubblico, CV e cancellazione dell'account.
-// Settimana 5: `pulizia`, la pianificata che chiude le richieste scadute.
+// Qui dentro sta quello che rende vera una conferma: il telefono del responsabile, il
+// confronto con quello che ha verificato, lo stato «confermata», la copia pubblica del
+// profilo. Dal client non si raggiunge niente di tutto questo.
 
 export { creaRichiesta, leggiRichiesta } from './richieste';
 export { confermaStagione, revocaConferma, segnalaStagione } from './conferme';
 export { eliminaAccount, pubblicaProfilo, pubblicaProfiloStagioni, urlCv } from './profilo';
+export { pulizia } from './pulizia';

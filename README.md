@@ -6,10 +6,14 @@ La specifica è in [`SPEC.md`](SPEC.md) e vale come riferimento: quello che non 
 costruisce prima di dicembre. Le decisioni prese stanno in [`DECISIONI.md`](DECISIONI.md), le idee
 rimandate in [`DOPO.md`](DOPO.md).
 
-**Stato: settimane 1–4 fatte.** L'app è completa nel suo giro: accesso col telefono, profilo,
-stagioni, conferma del responsabile, pagina pubblica, privacy, CV e cancellazione dell'account
-(L1–L6, C1–C4, P1). Criteri della §11 soddisfatti, compreso quello della settimana 4: apri il tuo
-link dal telefono di un altro e vedi solo quello che devi vedere.
+**Stato: settimane 1–5 fatte, la v1 è costruita.** Accesso col telefono, profilo, stagioni,
+conferma del responsabile, pagina pubblica, privacy, CV, cancellazione dell'account, anti-frode
+della §8 e pulizia notturna (L1–L6, C1–C4, P1). Criteri della §11 soddisfatti, compreso quello
+della settimana 5: nessun caso rompe l'app.
+
+Restano due cose, e nessuna delle due è codice: l'**avviso di budget su Blaze** (§1 qui sotto) e
+**PC5**, l'informativa rivista da un professionista. La specifica dice di non aprire la
+registrazione a tutti finché PC5 non è fatto.
 
 ---
 
@@ -116,19 +120,30 @@ Da caricare prima della beta (PC4): **Bar Somma** e **il tuo datore di lavoro**.
 ## 6. Provare che non si rompe
 
 ```sh
-npm run lint            # i tipi
+npm run lint            # i tipi, anche quelli delle funzioni
 npm test                # le regole di sicurezza: 57 prove, sull'emulatore
+npm run prova:rottura   # i 36 casi di rottura, chiamando le funzioni a mano
 npm run prova:flusso    # i 24 passaggi del flusso vero in un browser
-                        # (vuole emulatori + dev avviati)
+npm run prova           # rottura + flusso di seguito
 ```
 
-`npm test` è la prova più importante del progetto: non dimostra che l'app funziona, dimostra che
-**non** può fare quello che non deve. Che dal client non si può scrivere «confermata», che il
-telefono sul profilo è solo quello verificato via SMS, che il telefono di un responsabile non si
-legge, che un invito non si ruba. Se un giorno una di queste prove diventa rossa, è saltato il
-principio della §1, non un dettaglio.
+Le prove servono a tre cose diverse, e vale la pena sapere quale:
 
-La prima volta, per `prova:flusso`, serve il browser: `npx playwright install chromium`.
+- **`npm test`** guarda le **regole di sicurezza**. Non dimostra che l'app funziona: dimostra che
+  **non** può fare quello che non deve. Che dal client non si scrive «confermata», che il telefono
+  sul profilo è solo quello verificato via SMS, che il telefono di un responsabile non si legge,
+  che un invito non si ruba, che una stagione confermata si può solo nascondere.
+- **`npm run prova:rottura`** attacca le **Cloud Functions** senza passare dall'interfaccia, come
+  farebbe qualcuno che si è scritto il client a mano: confermarsi da soli, un link scaduto, una
+  doppia conferma, i limiti della §8.4, le segnalazioni, la revoca. Se un controllo esistesse solo
+  nell'interfaccia, questa prova lo scoprirebbe.
+- **`npm run prova:flusso`** fa il **giro vero in un browser**, con tre finestre separate:
+  il lavoratore, il responsabile e un datore che non è collegato.
+
+Se una di queste diventa rossa, è saltato il principio della §1, non un dettaglio.
+
+`prova:rottura` vuole gli emulatori avviati e le funzioni compilate. `prova:flusso` vuole anche
+`npm run dev`, e la prima volta il browser: `npx playwright install chromium`.
 
 ## 7. Mandare online
 
@@ -154,12 +169,13 @@ src/
   pages/             L1 accesso, L2 crea profilo, L3 libretto, L4 stagione,
                      L5 chiedi conferma, L6 impostazioni, C1-C4 conferma,
                      P1 pagina pubblica, privacy, come funziona
-functions/src/       le funzioni lato server: richieste.ts, conferme.ts, profilo.ts
+functions/src/       le funzioni lato server: richieste.ts, conferme.ts, profilo.ts,
+                     pulizia.ts (la pianificata di ogni notte)
 firestore.rules      chi può scrivere cosa: è qui che vive la fiducia
 storage.rules        foto pubbliche, CV privati
 test/regole.test.mjs le prove delle regole
 strumenti/           inviti e responsabili noti per l'emulatore,
-                     prova del flusso in browser
+                     prova di rottura e prova del flusso
 ```
 
 Sei scelte che vale la pena sapere prima di leggere il codice:
@@ -199,5 +215,5 @@ Sei scelte che vale la pena sapere prima di leggere il codice:
 | 2 | Stagioni e strutture (L3–L4), liste §7 | fatto |
 | 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | fatto |
 | 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | fatto |
-| 5 | Informativa, anti-frode §8, test di rottura | **da fare — PC4 e PC5** |
-| 6 | Beta chiusa con 3 colleghi | da fare |
+| 5 | Informativa, anti-frode §8, test di rottura | fatto — resta **PC5** |
+| 6 | Beta chiusa con 3 colleghi | **la prossima** |

@@ -13,7 +13,9 @@
     "deploy:regole": "firebase deploy --only firestore:rules,storage",
     "deploy": "npm run build && firebase deploy --only hosting,firestore,storage,functions",
     "prova:flusso": "node strumenti/prova-flusso.mjs",
-    "deploy:funzioni": "firebase deploy --only functions"
+    "deploy:funzioni": "firebase deploy --only functions",
+    "prova:rottura": "node strumenti/prova-rottura.mjs",
+    "prova": "npm run prova:rottura && npm run prova:flusso"
   },
   "dependencies": {
     "firebase": "^12.19.0",

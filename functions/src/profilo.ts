@@ -138,6 +138,16 @@ async function ricostruisci(uid: string): Promise<void> {
   });
 }
 
+/**
+ * Da chiamare quando cambia qualcosa che la pagina pubblica deve rispettare ma che non
+ * sta nel profilo né nelle stagioni — cioè la sospensione (§8.5). Senza questo, un
+ * libretto sospeso restava pubblico fino alla scrittura successiva, che poteva non
+ * arrivare mai: la sospensione blocca proprio le scritture di quel lavoratore.
+ */
+export async function ricostruisciProfiloPubblico(uid: string): Promise<void> {
+  await ricostruisci(uid);
+}
+
 export const pubblicaProfilo = onDocumentWritten('workers/{uid}', (evento) =>
   ricostruisci(evento.params.uid),
 );

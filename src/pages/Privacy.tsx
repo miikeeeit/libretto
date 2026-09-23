@@ -22,6 +22,10 @@ export default function Privacy() {
         Il titolare del trattamento è la persona che gestisce {NOME_APP}. Per qualunque richiesta sui
         tuoi dati scrivi a <a href={`mailto:${EMAIL_PRIVACY}`}>{EMAIL_PRIVACY}</a>.
       </p>
+      <p className="aiuto">
+        Da completare prima del lancio: il nome e i riferimenti del titolare, e un indirizzo email
+        vero per le richieste privacy (oggi qui c’è un segnaposto).
+      </p>
 
       <h2>Cosa raccogliamo di te, se sei un lavoratore</h2>
       <ul>
@@ -69,8 +73,23 @@ export default function Privacy() {
 
       <h2>Per quanto tempo</h2>
       <p>
-        Le richieste di conferma scadute si cancellano dopo 90 giorni. Un account che non si usa da tre
-        anni riceve un avviso e poi viene cancellato.
+        Una richiesta di conferma chiusa — usata, scaduta o revocata — si cancella{' '}
+        <strong>dopo 90 giorni</strong>, e con lei il nome e il numero del responsabile a cui era
+        stata mandata. Non è una promessa sulla carta: lo fa una procedura automatica ogni notte.
+      </p>
+      <p>
+        Un link di conferma che nessuno usa scade da solo dopo <strong>30 giorni</strong>. Un
+        account che non si usa da tre anni riceve un avviso e poi viene cancellato.
+      </p>
+
+      <h2>Se qualcuno dice che una stagione non è vera</h2>
+      <p>
+        Un responsabile che riceve una richiesta può rispondere che quella persona non ha mai
+        lavorato da lui. In quel caso la stagione non risulta più confermata e la segnalazione
+        arriva a chi gestisce {NOME_APP}. Dopo due segnalazioni di questo tipo il libretto viene
+        <strong> sospeso</strong>: il link pubblico smette di funzionare e non si possono chiedere
+        altre conferme, finché la cosa non viene guardata da una persona. Non è un giudizio sul
+        lavoro di nessuno: è un freno contro le stagioni inventate.
       </p>
 
       <h2>Dove stanno i dati</h2>
