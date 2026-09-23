@@ -8,47 +8,91 @@ più di qualunque funzione in più.
 
 ---
 
-## 1. Prima di toccare il deploy
+## La lista della spesa
 
-Tre cose, in quest'ordine.
+Ordine di esecuzione, non di importanza: ogni blocco dipende dal precedente. Il resto del
+documento spiega il perché di ogni riga.
 
-**L'avviso di budget su Blaze.** Da adesso ogni SMS costa. I passaggi sono nel
-[README §1](README.md#1-avviso-di-budget-prima-di-ogni-altra-cosa): budget basso, avvisi via
-email, e soprattutto **invio SMS limitato alla sola Italia** in Authentication → Settings.
-Quest'ultima è la difesa che conta: quasi tutto l'abuso di SMS arriva dall'estero, e senza
-quel limite una notte storta si misura in centinaia di euro.
+### Console Firebase — una volta sola
 
-**Le prove verdi.** Tutte e tre:
+- [ ] **Crea progetto**, piano **Blaze**
+- [ ] **Budget e avvisi** (console Google Cloud → Fatturazione): budget mensile basso, avvisi
+      al 50/90/100 %, email attiva
+- [ ] **Authentication** → attiva **Telefono**
+- [ ] **Authentication → Settings → SMS region policy**: solo **Italia**
+- [ ] **Firestore Database** → crea → modalità **produzione** → regione **`europe-west8`**
+      ← definitiva, non si cambia
+- [ ] **Storage** → inizia → stessa regione **`europe-west8`**
+- [ ] **Hosting** → inizia
+- [ ] **Impostazioni progetto → Le tue app** → aggiungi app **Web** → copia la configurazione SDK
 
-```sh
-npm test               # le regole
-npm run prova:rottura  # i casi di rottura
-npm run prova:flusso   # il giro in browser
-```
+I primi due prima degli altri: da quando l'accesso col telefono è attivo, gli SMS costano.
 
-**Il controllo di prontezza**, che guarda le cose che si sbagliano di fretta:
+### Sul computer
 
-```sh
-node strumenti/prontezza.mjs
-```
+- [ ] Node **20 o più** (`node -v`)
+- [ ] `git clone` del repo
+- [ ] `npm install`
+- [ ] `cp .env.example .env` → incolla la configurazione SDK, e **`VITE_USA_EMULATORI=0`**
+- [ ] `cp .firebaserc.example .firebaserc` → metti l'id vero del progetto
+- [ ] `npx firebase login`
 
-Se dice che qualcosa non va, non è pignoleria: l'errore che intercetta più spesso è una build
-che punta agli emulatori. Il sito si apre, sembra funzionare, e non salva niente.
+### Il lancio
+
+- [ ] `npm test`, `npm run prova:rottura`, `npm run prova:flusso` → tutte verdi
+- [ ] `npm run prontezza` → deve passare
+- [ ] `VITE_USA_EMULATORI=0 npm run deploy`
+
+### Subito dopo
+
+- [ ] Apri `https://<progetto>.web.app`: devi vedere la schermata di accesso
+- [ ] Firestore → `inviti` → un documento, id `mike-2026`, `attivo` = `true` (boolean),
+      `usatoDa` vuoto (null)
+- [ ] Firestore → `responsabiliNoti` → un documento per numero, id `+39…`, campo `nota` col
+      nome: **Bar Somma** e **il tuo datore** (PC4)
+- [ ] Il giro vero dal tuo telefono, fino a una conferma di Somma
+
+### Quanto costa
+
+Firestore, Hosting, Storage e Functions per cinque persone stanno **dentro le soglie gratuite**
+di Blaze: praticamente zero. L'unica voce che si paga da subito sono gli **SMS di verifica**,
+pochi centesimi l'uno: con te, tre colleghi e due responsabili parliamo di qualche euro al
+massimo, rilanci compresi. Il prezzo esatto per l'Italia è nella pagina prezzi di Firebase, e
+poi, per davvero, nel budget — è per questo che l'avviso va messo **prima**.
+
+L'unica cosa che potrebbe fare male è un abuso di SMS dall'estero, ed è precisamente quello che
+blocca la policy del primo blocco.
+
+---
+
+## 1. Perché quei due passaggi vengono per primi
+
+**L'avviso di budget su Blaze.** Da quando l'accesso col telefono è attivo, ogni SMS costa. I
+passaggi nel dettaglio sono nel
+[README §1](README.md#1-avviso-di-budget-prima-di-ogni-altra-cosa).
+
+**L'invio SMS limitato alla sola Italia** è la difesa che conta davvero: quasi tutto l'abuso di
+SMS arriva dall'estero, e senza quel limite una notte storta si misura in centinaia di euro.
+
+E il **controllo di prontezza** non è pignoleria: l'errore che intercetta più spesso è una build
+che punta agli emulatori. Il sito si apre, sembra funzionare, e non salva niente da nessuna
+parte. Per lo stesso motivo la build di produzione si rifiuta di partire da sola se il `.env`
+punta ancora in locale.
 
 ## 2. Il deploy
 
-```sh
-VITE_USA_EMULATORI=0 npm run deploy
-```
+`npm run deploy` manda online build, hosting, regole, indici e funzioni, e passa prima dal
+controllo di prontezza.
 
-Manda online build, hosting, regole, indici e funzioni. La prima volta Firebase può chiedere
-di attivare qualche API: rispondi di sì e rilancia.
+La **prima volta** Firebase chiede di attivare delle API — Cloud Build, Artifact Registry,
+Cloud Run, Eventarc, Cloud Scheduler: rispondi di sì, aspetta, e rilancia il comando. Chiede
+anche se impostare una **politica di pulizia** per Artifact Registry: rispondi **sì**,
+altrimenti accumula immagini vecchie che paghi.
 
-Quando finisce, stampa l'indirizzo (`https://<progetto>.web.app`). Aprilo dal computer: devi
-vedere la schermata di accesso.
+Quando finisce, stampa l'indirizzo (`https://<progetto>.web.app`).
 
-**Solo le regole**, quando cambi solo quelle: `npm run deploy:regole`. Si può fare spesso e
-non tocca niente altro.
+**Solo le regole**, quando cambi solo quelle: `npm run deploy:regole`. Si può fare spesso e non
+tocca niente altro. Solo le funzioni: `npm run deploy:funzioni`.
 
 ## 3. Il primo giro, dal tuo telefono
 
