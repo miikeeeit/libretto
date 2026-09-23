@@ -188,7 +188,7 @@ export const confermaStagione = onCall(async (chiamata) => {
     }
   });
 
-  await aggiornaResponsabileNoto(responsabileUid, stagione.strutturaId);
+  await aggiornaResponsabileNoto(responsabileUid, telefono, stagione.strutturaId);
 
   return {
     nomeLavoratore: worker.nome,
@@ -198,11 +198,28 @@ export const confermaStagione = onCall(async (chiamata) => {
 });
 
 /**
- * §8.3: un numero che ha confermato almeno tre lavoratori diversi della stessa struttura
- * diventa un «responsabile noto». Nella v1 il dato non si vede da nessuna parte: serve
- * ai controlli dell'admin e servirà alla ricerca di gennaio.
+ * §8.3 · «Responsabile noto». Nella v1 il dato non si vede da nessuna parte: serve ai
+ * controlli dell'admin e servirà alla ricerca di gennaio. Due strade per diventarlo.
+ *
+ * La prima (PC4, 2026-09-23): il numero sta nella lista che Mike carica a mano, in
+ * `responsabiliNoti`. Si controlla qui e non prima perché un responsabile esiste per
+ * Libretto solo dopo aver verificato il suo numero la prima volta: fino a quel momento
+ * non c'è nessun documento su cui mettere il flag. Così Mike può caricare i numeri
+ * in anticipo e il flag si applica da solo alla prima conferma.
+ *
+ * La seconda: averne confermati tre diversi nella stessa struttura.
  */
-async function aggiornaResponsabileNoto(responsabileUid: string, strutturaId: string): Promise<void> {
+async function aggiornaResponsabileNoto(
+  responsabileUid: string,
+  telefono: string,
+  strutturaId: string,
+): Promise<void> {
+  const inLista = await db.doc(`responsabiliNoti/${telefono}`).get();
+  if (inLista.exists) {
+    await db.doc(`responsabili/${responsabileUid}`).set({ verificatoAdmin: true }, { merge: true });
+    return;
+  }
+
   const suoi = await db
     .collection('conferme')
     .where('responsabileUid', '==', responsabileUid)

@@ -21,6 +21,7 @@ const AUTH = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
 const FUNZIONI = process.env.LIBRETTO_FUNZIONI ?? '127.0.0.1:5001';
 const CARTELLA = process.env.LIBRETTO_SCHERMATE ?? null;
 const INVITO = 'prova-2026';
+const RESPONSABILE_NOTO = '+393481112222';
 
 async function azzeraEmulatori() {
   await fetch(`http://${FIRESTORE}/emulator/v1/projects/${PROGETTO}/databases/(default)/documents`, {
@@ -33,6 +34,16 @@ async function azzeraEmulatori() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
       body: JSON.stringify({ fields: { attivo: { booleanValue: true }, usatoDa: { nullValue: null } } }),
+    },
+  );
+  // §8.3 (PC4): il numero del responsabile della prova è uno di quelli che l'admin
+  // conosce di persona, così si verifica che il flag scatti alla prima conferma.
+  await fetch(
+    `http://${FIRESTORE}/v1/projects/${PROGETTO}/databases/(default)/documents/responsabiliNoti?documentId=${encodeURIComponent(RESPONSABILE_NOTO)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+      body: JSON.stringify({ fields: { nota: { stringValue: 'Bar Somma' } } }),
     },
   );
 }
@@ -325,6 +336,19 @@ try {
   if (!grazie.includes('Mario')) throw new Error(`Schermata finale inattesa: "${grazie}"`);
   await schermata(responsabile, '10-conferma-c4');
   fatto('conferma data dal numero giusto, con una competenza tolta e «lo riprenderei»');
+
+  // ---- §8.3: il responsabile noto ------------------------------------------
+  // Il flag non si vede da nessuna parte nella v1, quindi si guarda nel database:
+  // serve ai controlli dell'admin e alla ricerca di gennaio.
+  const responsabili = await fetch(
+    `http://${FIRESTORE}/v1/projects/${PROGETTO}/databases/(default)/documents/responsabili`,
+    { headers: { Authorization: 'Bearer owner' } },
+  ).then((r) => r.json());
+  const noto = (responsabili.documents ?? []).some(
+    (d) => d.fields?.verificatoAdmin?.booleanValue === true,
+  );
+  if (!noto) throw new Error('Il numero in lista non è stato segnato come responsabile noto.');
+  fatto('un numero della lista dell’admin è noto già dalla prima conferma');
 
   // ---- Il link non si riusa -------------------------------------------------
   const secondoGiro = await telefonoDelResponsabile('secondo giro');

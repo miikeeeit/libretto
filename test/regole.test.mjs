@@ -437,6 +437,24 @@ describe('quello che solo le Cloud Functions possono toccare', () => {
     await assertFails(setDoc(doc(comeMario(), 'responsabili', LAVORATORE), { verificatoAdmin: true }));
   });
 
+  it('la lista dei numeri noti non si legge né si scrive dal client', async () => {
+    // È un elenco di telefoni di persone che non usano Libretto: non deve uscire di qui.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'responsabiliNoti', '+393480000000'), { nota: 'Bar Somma' });
+    });
+    await assertFails(getDoc(doc(comeMario(), 'responsabiliNoti', '+393480000000')));
+    await assertFails(getDocs(collection(comeMario(), 'responsabiliNoti')));
+    await assertFails(setDoc(doc(comeMario(), 'responsabiliNoti', '+393499999999'), { nota: 'io' }));
+  });
+
+  it('un libretto sospeso non si legge né si cancella dal client', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'sospensioni', LAVORATORE), { motivo: 'due segnalazioni' });
+    });
+    await assertFails(getDoc(doc(comeMario(), 'sospensioni', LAVORATORE)));
+    await assertFails(deleteDoc(doc(comeMario(), 'sospensioni', LAVORATORE)));
+  });
+
   it('le segnalazioni non si leggono né si cancellano dal client', async () => {
     await assertFails(getDoc(doc(comeMario(), 'segnalazioni', 'segn1')));
     await assertFails(deleteDoc(doc(comeMario(), 'segnalazioni', 'segn1')));

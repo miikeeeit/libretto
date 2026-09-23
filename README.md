@@ -93,12 +93,32 @@ Quando la registrazione si aprirà a tutti (fine novembre, dopo PC5) si cambiano
 `BETA_SU_INVITO` in `src/config.ts` e la funzione `invitoSuo` in `firestore.rules`, che ha già il
 commento su cosa aggiungere.
 
-## 5. Provare che non si rompe
+## 5. I responsabili che conosci (§8.3)
+
+Un numero in questa lista diventa **«responsabile noto»** alla sua prima conferma. Il dato non
+si vede da nessuna parte nella v1: serve ai tuoi controlli e servirà alla ricerca di gennaio.
+Serve caricarlo prima, perché un responsabile per Libretto esiste solo dopo che ha verificato
+il suo numero la prima volta.
+
+**Sul progetto vero**, console Firebase → Firestore → collezione `responsabiliNoti` → un
+documento con l'**id uguale al numero in formato internazionale** (`+393471234567`) e un campo
+`nota` con il nome, per ricordarti di chi è. Sono due o tre numeri: si fanno a mano, e così non
+serve scaricare una chiave di amministratore sul computer.
+
+**Sugli emulatori**:
+
+```sh
+node strumenti/responsabili-noti-emulatore.mjs "347 123 4567=Bar Somma"
+```
+
+Da caricare prima della beta (PC4): **Bar Somma** e **il tuo datore di lavoro**.
+
+## 6. Provare che non si rompe
 
 ```sh
 npm run lint            # i tipi
-npm test                # le regole di sicurezza: 55 prove, sull'emulatore
-npm run prova:flusso    # i 23 passaggi del flusso vero in un browser
+npm test                # le regole di sicurezza: 57 prove, sull'emulatore
+npm run prova:flusso    # i 24 passaggi del flusso vero in un browser
                         # (vuole emulatori + dev avviati)
 ```
 
@@ -110,7 +130,7 @@ principio della §1, non un dettaglio.
 
 La prima volta, per `prova:flusso`, serve il browser: `npx playwright install chromium`.
 
-## 6. Mandare online
+## 7. Mandare online
 
 ```sh
 npm run deploy:regole    # solo le regole di sicurezza: si può fare da subito e spesso
@@ -120,7 +140,7 @@ npm run deploy           # build + hosting + regole + indici + funzioni
 
 Le funzioni girano in `europe-west8`, come i dati: niente esce dall'Italia.
 
-## 7. Com'è fatto
+## 8. Com'è fatto
 
 ```
 src/
@@ -138,7 +158,8 @@ functions/src/       le funzioni lato server: richieste.ts, conferme.ts, profilo
 firestore.rules      chi può scrivere cosa: è qui che vive la fiducia
 storage.rules        foto pubbliche, CV privati
 test/regole.test.mjs le prove delle regole
-strumenti/           inviti per l'emulatore, prova del flusso in browser
+strumenti/           inviti e responsabili noti per l'emulatore,
+                     prova del flusso in browser
 ```
 
 Sei scelte che vale la pena sapere prima di leggere il codice:
@@ -170,7 +191,7 @@ Sei scelte che vale la pena sapere prima di leggere il codice:
   nemmeno riportandola in bozza: i dati di una conferma devono restare attaccati alla stagione per
   cui quella conferma è arrivata.
 
-## 8. Cosa manca (§11)
+## 9. Cosa manca (§11)
 
 | Settimana | Cosa | Stato |
 |---|---|---|

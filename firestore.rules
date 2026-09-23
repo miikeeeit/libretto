@@ -254,6 +254,11 @@ service cloud.firestore {
     match /sospensioni/{workerUid} {
       allow read, write: if false;
     }
+    // §8.3 (PC4): i numeri dei responsabili che l'admin conosce di persona. È un elenco
+    // di telefoni di terzi: dal client non si legge, non si elenca e non si scrive.
+    match /responsabiliNoti/{telefono} {
+      allow read, write: if false;
+    }
 
     // Tutto quello che non è previsto qui sopra è chiuso.
     match /{documento=**} {
