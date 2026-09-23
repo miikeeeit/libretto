@@ -18,17 +18,49 @@ import {
   type ProfiloPubblico,
 } from '../lib/profiloPubblico';
 
-function riepilogo(p: ProfiloPubblico): string {
-  const r = p.riepilogo;
-  if (r.nConfermate === 0) return 'Nessuna stagione confermata, per ora';
+const NUMERI_A_PAROLE = ['zero', 'una', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove', 'dieci'];
 
-  const pezzi = [
-    r.nConfermate === 1 ? '1 stagione confermata' : `${r.nConfermate} stagioni confermate`,
-    r.nStrutture === 1 ? 'da 1 struttura' : `da ${r.nStrutture} strutture`,
-  ];
-  const riga = pezzi.join(' ');
-  if (r.nRiprenderebbe === 0) return riga;
-  return `${riga} · ${r.nRiprenderebbe === 1 ? '1 lo riprenderebbe' : `${r.nRiprenderebbe} lo riprenderebbero`}`;
+function aParole(n: number): string {
+  return NUMERI_A_PAROLE[n] ?? String(n);
+}
+
+function maiuscola(testo: string): string {
+  return testo.charAt(0).toUpperCase() + testo.slice(1);
+}
+
+/** "Bar Somma, l'Oasi di Kufra e l'Hotel X" — come li elencherebbe una persona. */
+function elenco(nomi: string[]): string {
+  if (nomi.length <= 1) return nomi[0] ?? '';
+  return `${nomi.slice(0, -1).join(', ')} e ${nomi.at(-1)}`;
+}
+
+/**
+ * La frase in cima alla pagina.
+ *
+ * È l'unica cosa che un datore leggerà per certo, quindi risponde alla sua unica
+ * domanda — chi garantisce per questa persona — e la risponde **coi nomi delle
+ * strutture**, non con un conteggio: a Terracina «Bar Somma ha confermato» dice
+ * infinitamente più di «1 struttura ha confermato».
+ */
+function dichiarazione(p: ProfiloPubblico, nome: string): string {
+  const strutture = [...new Set(p.stagioni.filter((s) => s.stato === 'confermata').map((s) => s.struttura))];
+  const primo = nome.split(' ')[0] ?? nome;
+
+  if (strutture.length === 0) return `Nessuno ha ancora confermato le stagioni di ${primo}.`;
+  if (strutture.length === 1) {
+    return p.riepilogo.nConfermate === 1
+      ? `${strutture[0]} ha confermato una stagione di ${primo}.`
+      : `${strutture[0]} ha confermato ${aParole(p.riepilogo.nConfermate)} stagioni di ${primo}.`;
+  }
+  return `${maiuscola(aParole(strutture.length))} strutture hanno confermato le stagioni di ${primo}: ${elenco(strutture)}.`;
+}
+
+/** «Lo riprenderebbe» con la grammatica giusta: con una struttura sola non c'è un «loro». */
+function riprenderebbero(p: ProfiloPubblico): string {
+  const { nRiprenderebbe, nStrutture } = p.riepilogo;
+  if (nStrutture <= 1) return 'Lo riprenderebbe.';
+  if (nRiprenderebbe === 1) return 'Una di loro lo riprenderebbe.';
+  return `${maiuscola(aParole(nRiprenderebbe))} di loro lo riprenderebbero.`;
 }
 
 export default function PaginaPubblica() {
@@ -107,30 +139,37 @@ export default function PaginaPubblica() {
 
   return (
     <main className="schermata">
-      <section className="testa-profilo">
-        {foto ? (
-          <img src={foto} alt={profilo.nome} className="foto-profilo" />
-        ) : (
-          <div className="foto-profilo foto-profilo--vuota" aria-hidden="true">
-            {profilo.nome
-              .split(' ')
-              .slice(0, 2)
-              .map((p) => p.charAt(0))
-              .join('')}
+      <section className="testa-pubblica">
+        <div className="riga-identita">
+          {foto ? (
+            <img src={foto} alt={profilo.nome} className="foto-profilo foto-profilo--piccola" />
+          ) : (
+            <div className="foto-profilo foto-profilo--piccola foto-profilo--vuota" aria-hidden="true">
+              {profilo.nome
+                .split(' ')
+                .slice(0, 2)
+                .map((p) => p.charAt(0))
+                .join('')}
+            </div>
+          )}
+          <div>
+            <h1>{profilo.nome}</h1>
+            <p className="sottotitolo">
+              {nomeRuolo(profilo.ruoloPrincipale)}, {profilo.comune}
+            </p>
           </div>
-        )}
-        <div>
-          <h1>{profilo.nome}</h1>
-          <p className="sottotitolo">
-            {nomeRuolo(profilo.ruoloPrincipale)} · {profilo.comune}
-          </p>
-          <p className="numeri">{riepilogo(profilo)}</p>
         </div>
-      </section>
 
-      {profilo.disponibile && profilo.stagioneDisponibile && (
-        <p className="badge badge--grande">Disponibile per la stagione {profilo.stagioneDisponibile}</p>
-      )}
+        <p className="dichiarazione">{dichiarazione(profilo, profilo.nome)}</p>
+
+        {profilo.riepilogo.nRiprenderebbe > 0 && (
+          <p className="dichiarazione-seconda">{riprenderebbero(profilo)}</p>
+        )}
+
+        {profilo.disponibile && profilo.stagioneDisponibile && (
+          <p className="badge badge--grande">Disponibile per la stagione {profilo.stagioneDisponibile}</p>
+        )}
+      </section>
 
       {profilo.telefono && (
         <a

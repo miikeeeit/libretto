@@ -576,6 +576,46 @@ code {
 
 /* ---------- pagina pubblica (P1) ---------- */
 
+/* Chi apre questo link ha venti secondi e una domanda sola: chi garantisce per questa
+   persona. La risposta è la prima cosa che legge, non una riga grigia sotto la foto. */
+.testa-pubblica {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+
+.riga-identita {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.riga-identita h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.foto-profilo--piccola {
+  width: 48px;
+  height: 48px;
+  font-size: 0.95rem;
+}
+
+.dichiarazione {
+  font-size: clamp(1.45rem, 6.5vw, 1.9rem);
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.dichiarazione-seconda {
+  font-size: 1.05rem;
+  color: var(--inchiostro-tenue);
+  margin-top: -6px;
+}
+
 .riga-bottoni {
   display: flex;
   flex-wrap: wrap;

@@ -392,8 +392,13 @@ try {
   await datore.getByRole('heading', { name: 'Mario Rossi' }).waitFor({ timeout: 20000 });
 
   let pubblica = await testoDi(datore);
-  if (!contiene(pubblica, '1 stagione confermata da 1 struttura')) {
-    throw new Error(`Riepilogo pubblico inatteso: "${pubblica}"`);
+  // La frase in cima deve nominare chi ha confermato: è la risposta alla sola domanda
+  // che si fa un datore, e nominare il Bar Somma dice più di «1 struttura».
+  if (!contiene(pubblica, 'Bar Somma ha confermato una stagione di Mario')) {
+    throw new Error(`Dichiarazione pubblica inattesa: "${pubblica}"`);
+  }
+  if (!contiene(pubblica, 'lo riprenderebbe')) {
+    throw new Error('Manca la riga di «lo riprenderebbe» in pubblico.');
   }
   if (!contiene(pubblica, 'Confermata dal titolare') || !contiene(pubblica, 'Lo riprenderebbe')) {
     throw new Error('La stagione confermata non è mostrata come si deve.');
@@ -432,8 +437,8 @@ try {
     'la stagione nascosta deve sparire dalla pagina pubblica',
   );
   const senzaStagione = await testoDi(datore);
-  if (!contiene(senzaStagione, 'Nessuna stagione confermata')) {
-    throw new Error(`Riepilogo inatteso dopo aver nascosto: "${senzaStagione}"`);
+  if (!contiene(senzaStagione, 'Nessuno ha ancora confermato le stagioni di Mario')) {
+    throw new Error(`Dichiarazione inattesa dopo aver nascosto: "${senzaStagione}"`);
   }
   await page.getByText('Bar Somma · Bar').click();
   await aspettaChe(
