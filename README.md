@@ -6,7 +6,10 @@ La specifica è in [`SPEC.md`](SPEC.md) e vale come riferimento: quello che non 
 costruisce prima di dicembre. Le decisioni prese stanno in [`DECISIONI.md`](DECISIONI.md), le idee
 rimandate in [`DOPO.md`](DOPO.md).
 
-**Stato: settimane 1–5 fatte, la v1 è costruita.** Accesso col telefono, profilo, stagioni,
+**Stato: la v1 è costruita** (settimane 1–5) e si sta per mandare online: la beta chiusa della
+settimana 6 ha il suo manuale in [`BETA.md`](BETA.md).
+
+**Settimane 1–5 fatte.** Accesso col telefono, profilo, stagioni,
 conferma del responsabile, pagina pubblica, privacy, CV, cancellazione dell'account, anti-frode
 della §8 e pulizia notturna (L1–L6, C1–C4, P1). Criteri della §11 soddisfatti, compreso quello
 della settimana 5: nessun caso rompe l'app.
@@ -148,12 +151,25 @@ Se una di queste diventa rossa, è saltato il principio della §1, non un dettag
 ## 7. Mandare online
 
 ```sh
+npm run prontezza        # i controlli prima del deploy: config, progetto, scelte di prodotto
+VITE_USA_EMULATORI=0 npm run deploy
+```
+
+`npm run prontezza` guarda le cose che si sbagliano quando si è di fretta. La build stessa si
+rifiuta di partire se il `.env` punta ancora agli emulatori: è l'errore più facile da fare e il
+più difficile da vedere, perché il sito si apre lo stesso e non salva niente.
+
+Per gli aggiornamenti mirati:
+
+```sh
 npm run deploy:regole    # solo le regole di sicurezza: si può fare da subito e spesso
 npm run deploy:funzioni  # solo le Cloud Functions
-npm run deploy           # build + hosting + regole + indici + funzioni
 ```
 
 Le funzioni girano in `europe-west8`, come i dati: niente esce dall'Italia.
+
+Il giro completo della prima volta — deploy, invito, primo giro dal telefono, cosa dire ai
+colleghi, cosa guardare ogni giorno — è in [`BETA.md`](BETA.md).
 
 ## 8. Com'è fatto
 
@@ -174,8 +190,8 @@ functions/src/       le funzioni lato server: richieste.ts, conferme.ts, profilo
 firestore.rules      chi può scrivere cosa: è qui che vive la fiducia
 storage.rules        foto pubbliche, CV privati
 test/regole.test.mjs le prove delle regole
-strumenti/           inviti e responsabili noti per l'emulatore,
-                     prova di rottura e prova del flusso
+strumenti/           inviti e responsabili noti per l'emulatore, prova di rottura,
+                     prova del flusso, controllo di prontezza
 ```
 
 Sei scelte che vale la pena sapere prima di leggere il codice:
@@ -216,4 +232,4 @@ Sei scelte che vale la pena sapere prima di leggere il codice:
 | 3 | Richieste e conferma (L5, C1–C4), Cloud Functions | fatto |
 | 4 | Pagina pubblica (P1), `pubblicaProfilo`, privacy (L6), CV | fatto |
 | 5 | Informativa, anti-frode §8, test di rottura | fatto — resta **PC5** |
-| 6 | Beta chiusa con 3 colleghi | **la prossima** |
+| 6 | Beta chiusa con 3 colleghi | **in corso** — vedi [`BETA.md`](BETA.md) |

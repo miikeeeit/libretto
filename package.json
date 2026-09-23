@@ -11,11 +11,12 @@
     "test": "firebase emulators:exec --only firestore --project libretto-prova \"node --test test/*.test.mjs\"",
     "emulatori": "npm --prefix functions run build && firebase emulators:start",
     "deploy:regole": "firebase deploy --only firestore:rules,storage",
-    "deploy": "npm run build && firebase deploy --only hosting,firestore,storage,functions",
+    "deploy": "npm run prontezza && npm run build && firebase deploy --only hosting,firestore,storage,functions",
     "prova:flusso": "node strumenti/prova-flusso.mjs",
     "deploy:funzioni": "firebase deploy --only functions",
     "prova:rottura": "node strumenti/prova-rottura.mjs",
-    "prova": "npm run prova:rottura && npm run prova:flusso"
+    "prova": "npm run prova:rottura && npm run prova:flusso",
+    "prontezza": "node strumenti/prontezza.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",
