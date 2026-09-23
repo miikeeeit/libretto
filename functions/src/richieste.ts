@@ -79,8 +79,12 @@ export const creaRichiesta = onCall(async (richiesta) => {
   const stagione = stagioneSnap.data() as {
     stato: string;
     strutturaId: string;
+    strutturaNome: string;
+    strutturaComune: string;
+    ruolo: string;
     dal: string;
     al: string;
+    competenzeDichiarate: string[];
     richiestaId: string | null;
   };
 
@@ -110,7 +114,10 @@ export const creaRichiesta = onCall(async (richiesta) => {
 
   // Rimandare una richiesta uccide quella di prima: il link vecchio non deve più
   // funzionare, altrimenti resterebbero in giro due link per la stessa stagione.
-  if (stagione.richiestaId) {
+  // Si controlla che esista ancora: dopo 90 giorni la pulizia l'ha cancellata (§9), e
+  // una `update` su un documento che non c'è più faceva fallire ogni tentativo di
+  // rimandare, per sempre.
+  if (stagione.richiestaId && (await db.doc(`richieste/${stagione.richiestaId}`).get()).exists) {
     lotto.update(db.doc(`richieste/${stagione.richiestaId}`), { stato: 'revocata' });
   }
 
@@ -120,6 +127,19 @@ export const creaRichiesta = onCall(async (richiesta) => {
     nomeResponsabile,
     telefonoResponsabile,
     stato: 'aperta',
+    // Cosa si sta chiedendo, congelato adesso. È quello che il responsabile vedrà, ed è
+    // il paragone con cui la conferma verrà accettata o rifiutata: senza, chi ha mandato
+    // il link può cambiare struttura e periodo dopo averlo mandato, e nessuno — né il
+    // responsabile né il server — ha modo di accorgersene.
+    stagioneAlMomento: {
+      strutturaId: stagione.strutturaId,
+      strutturaNome: stagione.strutturaNome,
+      strutturaComune: stagione.strutturaComune,
+      ruolo: stagione.ruolo,
+      dal: stagione.dal,
+      al: stagione.al,
+      competenzeDichiarate: stagione.competenzeDichiarate ?? [],
+    },
     createdAt: adesso(),
     scadeIl: fraGiorni(GIORNI_SCADENZA),
   });
@@ -154,6 +174,14 @@ export const leggiRichiesta = onCall(async (richiesta) => {
     telefonoResponsabile: string;
     stato: string;
     scadeIl: { toMillis(): number };
+    stagioneAlMomento?: {
+      strutturaNome: string;
+      strutturaComune: string;
+      ruolo: string;
+      dal: string;
+      al: string;
+      competenzeDichiarate: string[];
+    };
   };
 
   // Se chi chiama ha già verificato un numero, si dice subito se è quello giusto: così
@@ -167,6 +195,9 @@ export const leggiRichiesta = onCall(async (richiesta) => {
 
   // Su un link non più valido non si dice niente di nessuno: solo perché non va.
   if (stato !== 'aperta') return { stato, numeroCoincide };
+
+  // Senza la foto di cosa è stato chiesto non si può mostrare niente con onestà.
+  if (!dati.stagioneAlMomento) return { stato: 'revocata' as const, numeroCoincide };
 
   const [workerSnap, stagioneSnap] = await Promise.all([
     db.doc(`workers/${dati.workerUid}`).get(),
@@ -185,24 +216,33 @@ export const leggiRichiesta = onCall(async (richiesta) => {
     dal: string;
     al: string;
     competenzeDichiarate: string[];
+    stato: string;
     richiestaId: string | null;
   };
 
-  // Se la stagione è stata corretta dopo l'invio, il link non vale più: il responsabile
-  // confermerebbe una cosa diversa da quella per cui gli è arrivata la richiesta.
-  if (stagione.richiestaId !== token) return { stato: 'revocata' as const, numeroCoincide };
+  // Se la stagione è stata toccata dopo l'invio, il link non vale più: il responsabile
+  // confermerebbe una cosa diversa da quella per cui gli è arrivata la richiesta. Lo
+  // dice già qui, invece di farglielo scoprire dopo aver verificato il numero.
+  if (stagione.richiestaId !== token || stagione.stato !== 'in_attesa') {
+    return { stato: 'revocata' as const, numeroCoincide };
+  }
+
+  // Le quattro righe vengono dalla foto del momento dell'invio, non dallo stato
+  // attuale: il responsabile deve leggere esattamente quello che gli è stato chiesto
+  // nel messaggio WhatsApp.
+  const chiesto = dati.stagioneAlMomento;
 
   return {
     stato: 'aperta' as const,
     numeroCoincide,
     nomeLavoratore: `${worker.nome} ${worker.cognome}`,
     nomeDiBattesimo: worker.nome,
-    struttura: stagione.strutturaNome,
-    comune: stagione.strutturaComune,
-    ruolo: stagione.ruolo,
-    dal: stagione.dal,
-    al: stagione.al,
-    competenzeDichiarate: stagione.competenzeDichiarate,
+    struttura: chiesto.strutturaNome,
+    comune: chiesto.strutturaComune,
+    ruolo: chiesto.ruolo,
+    dal: chiesto.dal,
+    al: chiesto.al,
+    competenzeDichiarate: chiesto.competenzeDichiarate,
     telefonoMascherato: mascheraTelefono(dati.telefonoResponsabile),
   };
 });

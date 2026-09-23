@@ -431,6 +431,81 @@ await titolo('La stagione corretta dopo aver mandato il link');
   );
 }
 
+// ---- La stagione cambiata restando «in attesa» --------------------------
+await titolo('La stagione cambiata di sotto al responsabile');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 450 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'sua');
+
+  const esito = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393484500002' },
+    mario,
+  );
+  const token = esito.risultato.token;
+
+  // Le regole non lo permettono più dal client, ma qui si scrive scavalcandole: serve a
+  // provare che il **server** rifiuta comunque, e non solo l'interfaccia. Il responsabile
+  // del Bar Somma non deve poter confermare un posto dove non ha visto nessuno.
+  await scriviCampi(`workers/${mario.uid}/stagioni/sua`, {
+    strutturaNome: { stringValue: 'Hotel Che Non Esiste' },
+    strutturaId: { stringValue: 'struttura-99' },
+  });
+
+  const letta = await chiama('leggiRichiesta', { token });
+  if (letta.risultato?.struttura === 'Hotel Che Non Esiste') {
+    no('il link non deve mostrare dati cambiati dopo l’invio', 'mostra la struttura nuova');
+  } else {
+    ok('il link di una stagione cambiata non mostra i dati nuovi');
+  }
+
+  const responsabile = await entra('348 450 0002');
+  await deveFallire(
+    'confermare una stagione cambiata restando in attesa',
+    chiama('confermaStagione', { token, ...CONFERMA_VALIDA }, responsabile),
+  );
+  await deveFallire(
+    'segnalare con lo stesso link',
+    chiama('segnalaStagione', { token, motivo: 'mai_lavorato' }, responsabile),
+  );
+}
+
+// ---- Cancellare la stagione per scansare la segnalazione ----------------
+await titolo('Cancellare la stagione per scansare la segnalazione');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 470 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'sua');
+
+  const esito = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393484700002' },
+    mario,
+  );
+
+  // Il lavoratore cancella la stagione appena vede arrivare la risposta.
+  await fetch(`${documenti}/workers/${mario.uid}/stagioni/sua`, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer owner' },
+  });
+
+  const responsabile = await entra('348 470 0002');
+  await deveRiuscire(
+    'la segnalazione passa anche senza la stagione',
+    chiama('segnalaStagione', { token: esito.risultato.token, motivo: 'mai_lavorato' }, responsabile),
+  );
+
+  const segnalazioni = await fetch(`${documenti}/segnalazioni`, {
+    headers: { Authorization: 'Bearer owner' },
+  }).then((r) => r.json());
+  if ((segnalazioni.documents ?? []).length === 1) {
+    ok('la segnalazione resta registrata: cancellare la stagione non la evita');
+  } else {
+    no('la segnalazione resta registrata', `trovate ${(segnalazioni.documents ?? []).length}`);
+  }
+}
+
 // ---- I limiti della §8.4 ------------------------------------------------
 await titolo('I limiti della §8.4');
 {
@@ -576,6 +651,58 @@ await titolo('La revoca del responsabile');
   }
 
   await deveFallire('revocare due volte', chiama('revocaConferma', { token }, responsabile));
+
+  const struttura = await leggi('strutture/struttura-1');
+  const conteggio = Number(struttura?.fields?.nConferme?.integerValue ?? 0);
+  if (conteggio < 0) {
+    no('i conteggi non scendono sotto zero', `strutture/struttura-1 ha nConferme ${conteggio}`);
+  } else {
+    ok(`i conteggi restano sani dopo la revoca (nConferme: ${conteggio})`);
+  }
+}
+
+// ---- L'eliminazione dell'account -----------------------------------------
+await titolo('L’eliminazione dell’account');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 850 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'sua');
+  await creaStagione(mario.uid, 'altra', { strutturaId: { stringValue: 'struttura-2' } });
+
+  const esito = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393488500002' },
+    mario,
+  );
+  const responsabile = await entra('348 850 0002');
+  await chiama('confermaStagione', { token: esito.risultato.token, ...CONFERMA_VALIDA }, responsabile);
+  await new Promise((r) => setTimeout(r, 1500));
+
+  if (!(await leggi('profiliPubblici/mario-0001'))) {
+    no('la pagina pubblica esiste prima della cancellazione', 'non c’era già');
+  }
+
+  await deveRiuscire('eliminare l’account', chiama('eliminaAccount', { conferma: 'ELIMINA' }, mario));
+
+  // Si aspetta con calma: la cancellazione delle stagioni fa ripartire il trigger che
+  // riscrive la pagina pubblica, ed è proprio lì che prima la pagina resuscitava —
+  // restando leggibile a chiunque dopo che una persona aveva chiesto di cancellare tutto.
+  await new Promise((r) => setTimeout(r, 4000));
+
+  if (await leggi('profiliPubblici/mario-0001')) {
+    no('dopo la cancellazione la pagina pubblica non torna', 'è stata riscritta dal trigger');
+  } else {
+    ok('dopo la cancellazione la pagina pubblica non torna');
+  }
+
+  if (await leggi(`workers/${mario.uid}`)) no('il profilo è cancellato', 'esiste ancora');
+  else ok('il profilo è cancellato');
+
+  if (await leggi(`responsabili/${mario.uid}`)) {
+    no('il telefono di chi cancella sparisce', 'responsabili/{uid} esiste ancora');
+  } else {
+    ok('il telefono di chi cancella sparisce anche da `responsabili`');
+  }
 }
 
 // ---- Il CV di un profilo che non lo mostra ------------------------------

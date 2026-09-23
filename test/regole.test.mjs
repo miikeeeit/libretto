@@ -21,6 +21,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 const LAVORATORE = 'uid-mario';
@@ -211,6 +212,28 @@ describe('profilo del lavoratore', () => {
     );
   });
 
+  it('non si crea un profilo senza i consensi', async () => {
+    // Sono la base giuridica del trattamento (§9): senza, il profilo non esiste.
+    const senzaConsensi = profilo();
+    delete senzaConsensi.consensi;
+    await assertFails(setDoc(doc(comeMario(), 'workers', LAVORATORE), senzaConsensi));
+
+    await assertFails(
+      setDoc(
+        doc(comeMario(), 'workers', LAVORATORE),
+        profilo({ consensi: { maggiorenne: new Date() } }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(comeMario(), 'workers', LAVORATORE),
+        profilo({
+          consensi: { maggiorenne: new Date(), informativa: { versione: '', ts: new Date() } },
+        }),
+      ),
+    );
+  });
+
   it('non si aggiungono campi non previsti', async () => {
     await assertFails(
       setDoc(doc(comeMario(), 'workers', LAVORATORE), profilo({ verificatoAdmin: true })),
@@ -266,6 +289,22 @@ describe('profilo già creato', () => {
     await assertFails(updateDoc(doc(comeMario(), 'workers', LAVORATORE), { invito: 'libero-2026' }));
   });
 
+  it('i consensi non si possono cancellare dopo', async () => {
+    await assertFails(updateDoc(doc(comeMario(), 'workers', LAVORATORE), { consensi: {} }));
+    await assertFails(
+      updateDoc(doc(comeMario(), 'workers', LAVORATORE), {
+        consensi: { informativa: { versione: '2', ts: new Date() } },
+      }),
+    );
+    // Accettare una versione nuova dell'informativa invece si deve poter fare.
+    await assertSucceeds(
+      updateDoc(doc(comeMario(), 'workers', LAVORATORE), {
+        consensi: { maggiorenne: new Date(), informativa: { versione: '2', ts: new Date() } },
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
   it('il profilo non si cancella dal client: ci pensa eliminaAccount', async () => {
     await assertFails(deleteDoc(doc(comeMario(), 'workers', LAVORATORE)));
   });
@@ -285,6 +324,40 @@ describe('stagioni', () => {
 
   it('una stagione in bozza si crea', async () => {
     await assertSucceeds(setDoc(doc(comeMario(), ...percorso, 'nuova'), stagione()));
+  });
+
+  it('non si nasce «in attesa»: quello stato lo scrive solo creaRichiesta', async () => {
+    await assertFails(
+      setDoc(doc(comeMario(), ...percorso, 'furba0'), stagione({ stato: 'in_attesa' })),
+    );
+  });
+
+  it('una stagione in attesa non si modifica restando in attesa', async () => {
+    // È il buco grosso: si mandava il link per il Bar Somma, si cambiava struttura
+    // tenendo lo stato «in attesa», e il responsabile confermava un altro posto.
+    // Correggere una stagione deve riportarla in bozza, e allora il link non vale più.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ...percorso, 'inAttesa'),
+        stagione({ stato: 'in_attesa', richiestaId: 'token-vivo' }),
+      );
+    });
+
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'inAttesa'), {
+        strutturaNome: 'Un altro posto',
+        stato: 'in_attesa',
+        updatedAt: new Date(),
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(comeMario(), ...percorso, 'inAttesa'), {
+        strutturaNome: 'Un altro posto',
+        stato: 'bozza',
+        richiestaId: null,
+        updatedAt: new Date(),
+      }),
+    );
   });
 
   it('non si nasce già confermata', async () => {
@@ -515,7 +588,22 @@ describe('eventi (§12)', () => {
 
   it('si scrivono senza nome e cognome', async () => {
     await assertSucceeds(
-      addDoc(collection(comeMario(), 'eventi'), { tipo: 'registrazione', uidAnonimo: 'a1b2c3', ts: new Date() }),
+      addDoc(collection(comeMario(), 'eventi'), {
+        tipo: 'registrazione',
+        uidAnonimo: 'a1b2c3',
+        ts: serverTimestamp(),
+      }),
+    );
+  });
+
+  it('la data deve essere quella del server', async () => {
+    // Senza questo si possono antidatare gli eventi e sporcare i numeri della §12.
+    await assertFails(
+      addDoc(collection(comeMario(), 'eventi'), {
+        tipo: 'registrazione',
+        uidAnonimo: 'a1b2c3',
+        ts: new Date('2020-01-01'),
+      }),
     );
   });
 
@@ -525,7 +613,11 @@ describe('eventi (§12)', () => {
 
   it('non si possono infilare altri dati', async () => {
     await assertFails(
-      addDoc(collection(comeMario(), 'eventi'), { tipo: 'registrazione', uid: LAVORATORE, ts: new Date() }),
+      addDoc(collection(comeMario(), 'eventi'), {
+        tipo: 'registrazione',
+        uid: LAVORATORE,
+        ts: serverTimestamp(),
+      }),
     );
   });
 });

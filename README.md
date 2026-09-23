@@ -124,8 +124,8 @@ Da caricare prima della beta (PC4): **Bar Somma** e **il tuo datore di lavoro**.
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # le regole di sicurezza: 57 prove, sull'emulatore
-npm run prova:rottura   # i 36 casi di rottura, chiamando le funzioni a mano
+npm test                # le regole di sicurezza: 62 prove, sull'emulatore
+npm run prova:rottura   # i 46 casi di rottura, chiamando le funzioni a mano
 npm run prova:flusso    # i 24 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito
 ```
@@ -222,6 +222,12 @@ Sei scelte che vale la pena sapere prima di leggere il codice:
 - **Una stagione confermata si può solo nascondere.** Le regole non lasciano cambiarle nient'altro,
   nemmeno riportandola in bozza: i dati di una conferma devono restare attaccati alla stagione per
   cui quella conferma è arrivata.
+- **La richiesta si ricorda cosa ha chiesto.** In `richieste.stagioneAlMomento` c'è la foto di
+  struttura, ruolo, periodo e competenze al momento in cui il link è partito. È quello che il
+  responsabile legge, e il paragone con cui `confermaStagione` accetta o rifiuta. Senza, chi manda
+  il link può cambiare struttura e periodo dopo averlo mandato, e né il responsabile né il server
+  hanno modo di accorgersene. Correggere una stagione la riporta sempre in bozza, il che uccide il
+  link: sono tre controlli sovrapposti perché nessuno dei tre, da solo, tiene.
 
 ## 9. Cosa manca (§11)
 

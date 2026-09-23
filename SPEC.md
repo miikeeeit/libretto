@@ -230,6 +230,11 @@ richieste/{token}          // token casuale di 32 caratteri = id del documento
   nomeResponsabile
   telefonoResponsabile     // E.164, leggibile solo dalla Cloud Function
   stato: aperta | usata | scaduta | revocata
+  stagioneAlMomento        // foto di cosa è stato chiesto: struttura, ruolo, periodo,
+                           // competenze dichiarate. Non è nella §6 originale: è quello
+                           // che il responsabile vede, e il paragone con cui la conferma
+                           // viene accettata. Senza, si poteva cambiare struttura e
+                           // periodo dopo aver mandato il link.
   createdAt, scadeIl       // +30 giorni
 
 conferme/{confermaId}

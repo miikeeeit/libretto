@@ -8,7 +8,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { getAuth } from 'firebase-admin/auth';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, type WriteBatch } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
@@ -51,13 +51,25 @@ type Stagione = {
   ruoloResponsabile: string | null;
 };
 
-/** Ricostruisce da zero il documento pubblico di un lavoratore. */
-async function ricostruisci(uid: string): Promise<void> {
+/**
+ * Ricostruisce da zero il documento pubblico di un lavoratore.
+ *
+ * `slugPrecedente` serve quando il profilo **non esiste più**: senza il documento non si
+ * sa più quale pagina pubblica cancellare, e la copia pubblica — nome, comune, foto, e
+ * il telefono se era acceso — resterebbe leggibile a chiunque per sempre, dopo che una
+ * persona ha chiesto di cancellare tutto. Lo slug arriva dallo stato precedente del
+ * documento, che il trigger ha in mano.
+ */
+async function ricostruisci(uid: string, slugPrecedente?: string): Promise<void> {
   const workerSnap = await db.doc(`workers/${uid}`).get();
 
-  // Profilo cancellato: sparisce anche la copia pubblica. Lo slug però non si libera:
-  // se si riusasse, un vecchio link mostrerebbe la persona sbagliata.
-  if (!workerSnap.exists) return;
+  if (!workerSnap.exists) {
+    if (slugPrecedente) {
+      await db.doc(`profiliPubblici/${slugPrecedente}`).delete().catch(() => undefined);
+    }
+    // Lo slug non si libera: se si riusasse, un vecchio link mostrerebbe un'altra persona.
+    return;
+  }
 
   const worker = workerSnap.data() as Worker;
   const pubblico = db.doc(`profiliPubblici/${worker.slug}`);
@@ -128,7 +140,7 @@ async function ricostruisci(uid: string): Promise<void> {
     })),
     competenze: { confermate: competenzeConfermate, dichiarate },
     riepilogo: {
-      nStagioni: stagioni.length,
+      nStagioni: visibili.length,
       nConfermate: confermate.length,
       nStrutture: new Set(confermate.map((s) => s.strutturaId)).size,
       nRiprenderebbe: confermate.filter((s) => s.riprenderebbe).length,
@@ -148,9 +160,12 @@ export async function ricostruisciProfiloPubblico(uid: string): Promise<void> {
   await ricostruisci(uid);
 }
 
-export const pubblicaProfilo = onDocumentWritten('workers/{uid}', (evento) =>
-  ricostruisci(evento.params.uid),
-);
+export const pubblicaProfilo = onDocumentWritten('workers/{uid}', (evento) => {
+  // Lo slug di prima: è l'unico modo di sapere quale pagina pubblica togliere quando il
+  // profilo viene cancellato.
+  const slugPrecedente = evento.data?.before?.get('slug');
+  return ricostruisci(evento.params.uid, typeof slugPrecedente === 'string' ? slugPrecedente : undefined);
+});
 
 export const pubblicaProfiloStagioni = onDocumentWritten('workers/{uid}/stagioni/{stagioneId}', (evento) =>
   ricostruisci(evento.params.uid),
@@ -222,11 +237,6 @@ export const eliminaAccount = onCall(async (chiamata) => {
   const workerSnap = await db.doc(`workers/${uid}`).get();
   const worker = workerSnap.data() as Worker | undefined;
 
-  if (worker?.slug) {
-    await db.doc(`profiliPubblici/${worker.slug}`).delete().catch(() => undefined);
-    await db.doc(`slugs/${worker.slug}`).set({ uid: null, liberatoIl: adesso() }, { merge: true });
-  }
-
   const bucket = getStorage().bucket();
   await Promise.all(
     [worker?.fotoPath, worker?.cvPath]
@@ -236,14 +246,11 @@ export const eliminaAccount = onCall(async (chiamata) => {
 
   // Le richieste aperte muoiono con l'account: i link in giro smettono di funzionare.
   const richieste = await db.collection('richieste').where('workerUid', '==', uid).get();
-  const lottoRichieste = db.batch();
-  richieste.docs.forEach((d) => lottoRichieste.delete(d.ref));
-  await lottoRichieste.commit();
+  await aLotti(richieste.docs.map((d) => (lotto) => lotto.delete(d.ref)));
 
   // Le conferme ricevute se ne vanno con l'account, e con loro i conteggi che avevano
   // alzato: altrimenti una struttura resterebbe con «3 conferme» che non esistono più.
   const conferme = await db.collection('conferme').where('workerUid', '==', uid).get();
-  const lottoConferme = db.batch();
   const daScalare = new Map<string, number>();
   for (const doc of conferme.docs) {
     const dati = doc.data() as { strutturaId?: string; responsabileUid?: string };
@@ -253,18 +260,45 @@ export const eliminaAccount = onCall(async (chiamata) => {
     ]) {
       if (percorso) daScalare.set(percorso, (daScalare.get(percorso) ?? 0) + 1);
     }
-    lottoConferme.delete(doc.ref);
   }
-  for (const [percorso, quante] of daScalare) {
-    lottoConferme.set(db.doc(percorso), { nConferme: FieldValue.increment(-quante) }, { merge: true });
-  }
-  await lottoConferme.commit();
+  await aLotti([
+    ...conferme.docs.map((d) => (lotto: WriteBatch) => lotto.delete(d.ref)),
+    ...[...daScalare].map(
+      ([percorso, quante]) =>
+        (lotto: WriteBatch) =>
+          lotto.set(db.doc(percorso), { nConferme: FieldValue.increment(-quante) }, { merge: true }),
+    ),
+  ]);
+
+  // Il documento del responsabile contiene il suo telefono: se questa persona ha anche
+  // confermato per qualcun altro, quel numero deve sparire con l'account. Le conferme
+  // che ha dato restano — sono il profilo di altre persone — ma senza nulla che le
+  // riconduca a un numero, e con l'accesso cancellato l'uid è morto.
+  await db.doc(`responsabili/${uid}`).delete().catch(() => undefined);
 
   await db.doc(`sospensioni/${uid}`).delete().catch(() => undefined);
   await db.recursiveDelete(db.doc(`workers/${uid}`));
+
+  // La copia pubblica si cancella **per ultima**, dopo il profilo: cancellandola prima,
+  // ogni stagione rimossa da `recursiveDelete` faceva ripartire `pubblicaProfilo`, che
+  // trovava il profilo ancora al suo posto e la riscriveva.
+  if (worker?.slug) {
+    await db.doc(`profiliPubblici/${worker.slug}`).delete().catch(() => undefined);
+    await db.doc(`slugs/${worker.slug}`).set({ uid: null, liberatoIl: adesso() }, { merge: true });
+  }
 
   // Anche l'accesso: il numero torna libero di registrarsi da capo, domani.
   await getAuth().deleteUser(uid).catch(() => undefined);
 
   return { ok: true };
 });
+
+/** Un `WriteBatch` accetta 500 scritture: oltre, la commit fallisce e la cancellazione
+ * si fermerebbe a metà. Quindi si spezza. */
+async function aLotti(scritture: ((lotto: WriteBatch) => void)[], perLotto = 400): Promise<void> {
+  for (let i = 0; i < scritture.length; i += perLotto) {
+    const lotto = db.batch();
+    scritture.slice(i, i + perLotto).forEach((scrivi) => scrivi(lotto));
+    await lotto.commit();
+  }
+}

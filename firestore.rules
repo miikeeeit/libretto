@@ -75,7 +75,22 @@ service cloud.firestore {
           && d.privacy.pubblico is bool
           && d.privacy.mostraTelefono is bool
           && d.privacy.mostraInAttesa is bool
-          && d.privacy.mostraCv is bool;
+          && d.privacy.mostraCv is bool
+          && consensiValidi(d);
+      }
+
+      // I consensi sono l'unica cosa in questo documento che regge la base giuridica del
+      // trattamento (§9): la dichiarazione dei 18 anni e la versione dell'informativa
+      // accettata. Erano nell'elenco dei campi ammessi ma nessuno li controllava, quindi
+      // si potevano omettere del tutto — `hasOnly` non obbliga a mettere niente — o
+      // cancellare più tardi con un aggiornamento.
+      function consensiValidi(d) {
+        return d.consensi.keys().hasOnly(['maggiorenne', 'informativa'])
+          && d.consensi.maggiorenne is timestamp
+          && d.consensi.informativa.keys().hasOnly(['versione', 'ts'])
+          && d.consensi.informativa.versione is string
+          && d.consensi.informativa.versione.size() > 0
+          && d.consensi.informativa.ts is timestamp;
       }
 
       // Il telefono non lo decide il client: deve essere quello verificato via SMS.
@@ -141,13 +156,13 @@ service cloud.firestore {
         }
 
         // Quello che rende vera una conferma lo scrive solo la Cloud Function:
-        // dal client questi campi devono restare vuoti, e lo stato non può
-        // diventare "confermata" da sé.
+        // dal client questi campi devono restare vuoti, e una stagione nasce sempre in
+        // bozza. «In attesa» lo scrive solo `creaRichiesta`, quando il link parte.
         function nienteCampiDiFiducia(d) {
           return d.competenzeConfermate.size() == 0
             && d.riprenderebbe == false
             && d.ruoloResponsabile == null
-            && d.stato in ['bozza', 'in_attesa'];
+            && d.stato == 'bozza';
         }
 
         function soloCampiSuoi() {
@@ -175,6 +190,13 @@ service cloud.firestore {
         // Senza questo, si poteva riportarla in bozza tenendosi addosso le competenze
         // confermate e il ruolo del responsabile, e poi cambiarle struttura e periodo:
         // dati di una conferma attaccati a una stagione che non è più quella.
+        //
+        // E ogni altra modifica **riporta la stagione in bozza**, sempre. Prima si
+        // poteva correggere una stagione lasciandola «in attesa»: si mandava il link
+        // per il Bar Somma, si cambiava struttura e periodo, e il responsabile del Bar
+        // Somma si trovava a confermare un posto dove non aveva mai visto nessuno.
+        // Tornando in bozza, il link mandato non vale più niente — lo controlla anche
+        // il server, che rifiuta una conferma su una stagione che non è più in attesa.
         allow update: if proprietario(uid)
           && formaStagione(request.resource.data)
           && (
@@ -182,7 +204,7 @@ service cloud.firestore {
             || (
               resource.data.stato != 'confermata'
               && soloCampiSuoi()
-              && request.resource.data.stato in ['bozza', 'in_attesa']
+              && request.resource.data.stato == 'bozza'
             )
           );
 
@@ -224,12 +246,22 @@ service cloud.firestore {
     }
 
     // ---- Eventi (§12) --------------------------------------------------------
-    // Si scrivono e non si rileggono: servono a contare, non a sapere chi.
+    // Si scrivono e non si rileggono: servono a contare, non a sapere chi. Si scrivono
+    // anche senza essere collegati, perché due eventi che contano — il responsabile che
+    // apre il link, il datore che apre un profilo — vengono da chi non ha un account.
+    //
+    // Il prezzo di questa apertura: chiunque può gonfiare i conteggi e far scrivere
+    // documenti a pagamento. `ts` deve essere l'ora del server, così almeno non si
+    // possono antidatare; contro il volume la difesa è l'avviso di budget, e se un
+    // giorno servisse davvero, App Check. Per una beta su invito è sproporzionato.
     match /eventi/{eventoId} {
       allow create: if request.resource.data.keys().hasOnly(['tipo', 'uidAnonimo', 'ts'])
         && request.resource.data.tipo is string
         && request.resource.data.tipo.size() <= 40
-        && (request.resource.data.uidAnonimo == null || request.resource.data.uidAnonimo is string);
+        && request.resource.data.ts == request.time
+        && (request.resource.data.uidAnonimo == null
+            || (request.resource.data.uidAnonimo is string
+                && request.resource.data.uidAnonimo.size() <= 32));
       allow read, update, delete: if false;
     }
 

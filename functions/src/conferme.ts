@@ -27,10 +27,21 @@ type Richiesta = {
   telefonoResponsabile: string;
   stato: string;
   scadeIl: Timestamp;
+  /** Cosa è stato chiesto, congelato al momento dell'invio del link. */
+  stagioneAlMomento?: {
+    strutturaId: string;
+    ruolo: string;
+    dal: string;
+    al: string;
+    competenzeDichiarate: string[];
+  };
 };
 
 type Stagione = {
   strutturaId: string;
+  ruolo: string;
+  dal: string;
+  al: string;
   competenzeDichiarate: string[];
   stato: string;
   richiestaId: string | null;
@@ -125,9 +136,23 @@ export const confermaStagione = onCall(async (chiamata) => {
   const stagione = stagioneSnap.data() as Stagione;
   const worker = workerSnap.data() as { telefono: string; nome: string };
 
-  // La stagione è stata corretta dopo l'invio del link: quello che il responsabile
-  // vedrebbe non è più quello per cui gli è arrivata la richiesta.
-  if (stagione.richiestaId !== token) {
+  // Tre controlli, e servono tutti tre.
+  //
+  // Il token dice «questa stagione aspetta proprio questo link». Lo stato dice «e lo
+  // sta ancora aspettando»: correggere una stagione la riporta in bozza, e da lì una
+  // conferma non si dà più. Il confronto con la foto del momento dell'invio è quello
+  // che tiene se i primi due vengono aggirati: senza, si poteva mandare il link per il
+  // Bar Somma, cambiare struttura e periodo lasciando stato e token intatti, e farsi
+  // confermare dal titolare del Bar Somma un posto dove non aveva visto nessuno.
+  const chiesto = richiesta.stagioneAlMomento;
+  const uguale =
+    chiesto !== undefined &&
+    chiesto.strutturaId === stagione.strutturaId &&
+    chiesto.ruolo === stagione.ruolo &&
+    chiesto.dal === stagione.dal &&
+    chiesto.al === stagione.al;
+
+  if (stagione.richiestaId !== token || stagione.stato !== 'in_attesa' || !uguale) {
     throw new HttpsError('failed-precondition', 'Questo link non è più valido: la stagione è stata modificata.');
   }
 
@@ -136,10 +161,12 @@ export const confermaStagione = onCall(async (chiamata) => {
     throw new HttpsError('permission-denied', 'Non si può confermare una stagione a sé stessi.');
   }
 
-  // Si può confermare solo ciò che il lavoratore ha dichiarato: il responsabile toglie,
-  // non aggiunge. Così una competenza confermata è sempre una che il lavoratore si è
-  // preso la responsabilità di scrivere.
-  const dichiarate = new Set(stagione.competenzeDichiarate ?? []);
+  // Si può confermare solo ciò che il lavoratore ha dichiarato **e** che era nel
+  // messaggio: il responsabile toglie, non aggiunge, e non gli si può far confermare una
+  // competenza aggiunta dopo che aveva aperto il link.
+  const dichiarate = new Set(
+    (chiesto.competenzeDichiarate ?? []).filter((c) => (stagione.competenzeDichiarate ?? []).includes(c)),
+  );
   const competenzeConfermate = (competenzeRichieste as string[]).filter((c) => dichiarate.has(c));
 
   // §8.4: dieci conferme in ventiquattr'ore per numero. Chi ne fa di più non è un
@@ -275,13 +302,37 @@ export const segnalaStagione = onCall(async (chiamata) => {
 
   const { ref: richiestaRef, richiesta } = await richiestaPerChiamante(token, telefono, 'aperta');
   const stagioneRef = db.doc(`workers/${richiesta.workerUid}/stagioni/${richiesta.stagioneId}`);
+  const stagioneSnap = await stagioneRef.get();
+  const stagione = stagioneSnap.data() as Stagione | undefined;
+
+  // Gli stessi due controlli della conferma, che qui mancavano: con un link vecchio
+  // ancora aperto si poteva far diventare «non confermata» una stagione che aspettava
+  // un altro responsabile, e appioppare al lavoratore una segnalazione delle due che
+  // sospendono il libretto.
+  const chiesto = richiesta.stagioneAlMomento;
+  const cambiata =
+    stagione !== undefined &&
+    (stagione.richiestaId !== token ||
+      stagione.stato !== 'in_attesa' ||
+      chiesto === undefined ||
+      chiesto.strutturaId !== stagione.strutturaId ||
+      chiesto.dal !== stagione.dal ||
+      chiesto.al !== stagione.al);
+  if (cambiata) {
+    throw new HttpsError('failed-precondition', 'Questo link non è più valido.');
+  }
 
   const lotto = db.batch();
-  lotto.update(stagioneRef, {
-    stato: 'non_confermata',
-    richiestaId: null,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  // Se il lavoratore ha cancellato la stagione nel frattempo, la segnalazione si scrive
+  // comunque: altrimenti bastava cancellarla per scansare la segnalazione, e l'intera
+  // commit saltava per una `update` su un documento che non c'è più.
+  if (stagioneSnap.exists) {
+    lotto.update(stagioneRef, {
+      stato: 'non_confermata',
+      richiestaId: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
   lotto.update(richiestaRef, { stato: 'usata' });
 
   if (motivo === 'mai_lavorato') {
@@ -348,42 +399,50 @@ export const revocaConferma = onCall(async (chiamata) => {
   const stagioneRef = db.doc(`workers/${richiesta.workerUid}/stagioni/${richiesta.stagioneId}`);
   const strutturaRef = db.doc(`strutture/${dati.strutturaId}`);
 
-  // Si guarda cosa esiste ancora: una revoca non deve fallire perché nel frattempo il
-  // lavoratore ha cancellato la stagione, né creare una struttura dal nulla con un
-  // conteggio negativo.
-  const [stagioneEsiste, strutturaEsiste] = await Promise.all([
-    stagioneRef.get().then((s) => s.exists),
-    strutturaRef.get().then((s) => s.exists),
-  ]);
+  // In transazione, non in lotto: un doppio tap o un tentativo ripetuto dal telefono
+  // scalava due volte i conteggi delle conferme, e la cancellazione della conferma non
+  // dava errore la seconda volta, quindi non se ne accorgeva nessuno. Rileggendo lo
+  // stato della richiesta dentro la transazione, il secondo giro si ferma qui.
+  await db.runTransaction(async (tx) => {
+    const controllo = await tx.get(richiestaRef);
+    if (controllo.data()?.stato !== 'usata') {
+      throw new HttpsError('failed-precondition', 'Questa conferma è già stata revocata.');
+    }
 
-  const lotto = db.batch();
+    // Si guarda cosa esiste ancora: una revoca non deve fallire perché nel frattempo il
+    // lavoratore ha cancellato la stagione, né creare una struttura dal nulla con un
+    // conteggio negativo.
+    const [stagioneSnap, strutturaSnap] = await Promise.all([
+      tx.get(stagioneRef),
+      tx.get(strutturaRef),
+    ]);
 
-  lotto.delete(conferma.ref);
+    tx.delete(conferma.ref);
 
-  // La stagione torna in bozza: sparisce dal profilo pubblico e il lavoratore può
-  // ripartire da capo, invece di restare con addosso una stagione «non confermata»
-  // per un errore di chi l'aveva confermata.
-  if (stagioneEsiste) {
-    lotto.update(stagioneRef, {
-      stato: 'bozza',
-      competenzeConfermate: [],
-      riprenderebbe: false,
-      ruoloResponsabile: null,
-      richiestaId: null,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
+    // La stagione torna in bozza: sparisce dal profilo pubblico e il lavoratore può
+    // ripartire da capo, invece di restare con addosso una stagione «non confermata»
+    // per un errore di chi l'aveva confermata.
+    if (stagioneSnap.exists) {
+      tx.update(stagioneRef, {
+        stato: 'bozza',
+        competenzeConfermate: [],
+        riprenderebbe: false,
+        ruoloResponsabile: null,
+        richiestaId: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
 
-  lotto.update(richiestaRef, { stato: 'revocata' });
-  lotto.set(
-    db.doc(`responsabili/${dati.responsabileUid}`),
-    { nConferme: FieldValue.increment(-1) },
-    { merge: true },
-  );
-  if (strutturaEsiste) {
-    lotto.update(strutturaRef, { nConferme: FieldValue.increment(-1) });
-  }
+    tx.update(richiestaRef, { stato: 'revocata' });
+    tx.set(
+      db.doc(`responsabili/${dati.responsabileUid}`),
+      { nConferme: FieldValue.increment(-1) },
+      { merge: true },
+    );
+    if (strutturaSnap.exists) {
+      tx.update(strutturaRef, { nConferme: FieldValue.increment(-1) });
+    }
+  });
 
-  await lotto.commit();
   return { ok: true };
 });
