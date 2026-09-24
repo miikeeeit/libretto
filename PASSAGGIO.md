@@ -27,6 +27,7 @@ quella frase cade, non resta niente — è un CV con la grafica più bella.
 | Come si lavora, come si prova, come si manda online | [`README.md`](README.md) |
 | La beta chiusa, passo per passo | [`BETA.md`](BETA.md) |
 | Identità visiva (canvas, non ancora nel codice) | <https://claude.ai/artifact/99eUzj74DXGWbq6CXZ3m6p> |
+| Il brief per continuare il canvas, coi testi veri | [`BRIEF_DESIGN.md`](BRIEF_DESIGN.md) |
 
 ## A che punto è
 
