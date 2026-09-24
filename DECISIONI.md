@@ -18,6 +18,7 @@ Le decisioni che spettano a Mike, con la data in cui le ha prese. I punti di con
 | 2026-09-24 | Design · Direzione visiva | **«Blu, dall'ispirazione»**, su un'immagine portata da Mike: navy pieno, schede azzurrine, angoli tondi, Poppins, barra in basso col bottone centrale. Regola: **pieno = confermato da un'altra persona, azzurro = dichiarato**. Scartate «Timbro e penna» e «Stile Apple», che restano sul canvas per confronto. Nel codice solo dopo la beta. |
 | 2026-09-24 | Design · Stagioni nel libretto | **In griglia a due colonne.** I bottoni «Rimanda» e «Correggi» diventano una scritta dentro la scheda. |
 | 2026-09-24 | Design · Numeri sulla pagina pubblica | **Tolti.** In cima resta solo la frase che nomina chi ha confermato. |
+| 2026-09-24 | PC5 · Titolare del trattamento | **Mike come persona fisica**, nessuna ditta per ora. La scheda per il professionista della privacy è pronta (link in `PASSAGGIO.md`). |
 | | PC5 · Informativa rivista da professionista | |
 
 ## Cose da ricordare a Mike

@@ -28,6 +28,7 @@ quella frase cade, non resta niente — è un CV con la grafica più bella.
 | La beta chiusa, passo per passo | [`BETA.md`](BETA.md) |
 | Identità visiva (canvas, non ancora nel codice) | <https://claude.ai/artifact/99eUzj74DXGWbq6CXZ3m6p> |
 | Il brief per continuare il canvas, coi testi veri | [`BRIEF_DESIGN.md`](BRIEF_DESIGN.md) |
+| La scheda per il professionista della privacy (PC5) | <https://claude.ai/code/artifact/f392db09-27ab-49b2-9e13-e3b7b1ad8bcb> |
 
 ## A che punto è
 
