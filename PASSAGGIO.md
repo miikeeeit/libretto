@@ -145,8 +145,8 @@ vuol dire confermato da un'altra persona, azzurro vuol dire dichiarato**, per le
 per le competenze. Le altre due pagine del canvas, «Stile Apple» e «Timbro e penna», sono
 proposte scartate, tenute per confronto.
 
-Restano aperte tre domande, scritte su un foglietto nel canvas: stagioni in griglia o in
-elenco, i tre numeri sotto la frase della pagina pubblica, il tema scuro.
+Deciso anche: stagioni in griglia, niente numeri sotto la frase della pagina pubblica
+(vedi `DECISIONI.md`). Resta aperto il tema scuro: l'app di oggi ce l'ha, le tavole no.
 
 Non si porta nel codice prima della beta: prima si guarda dove la gente si blocca. La
 gerarchia della pagina pubblica è già sistemata (la prima cosa che si legge nomina chi ha
