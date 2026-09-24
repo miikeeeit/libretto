@@ -138,11 +138,19 @@ grosso sono nate rosse e hanno smentito la mia prima correzione.
 L'identità visiva è progettata su un canvas Claude Design, **non ancora nel codice**:
 <https://claude.ai/artifact/99eUzj74DXGWbq6CXZ3m6p>
 
-La direzione è «timbro e penna»: un documento di lavoro italiano è credibile perché è
-timbrato, e la differenza fra confermato e dichiarato è quella fra un timbro e una riga a
-penna. Non si porta nel codice prima della beta: prima si guarda dove la gente si blocca.
-La gerarchia della pagina pubblica è già sistemata (la prima cosa che si legge nomina chi ha
-confermato); il resto — palette, caratteri, via le schede — è in `DOPO.md`.
+La direzione scelta da Mike è **«Blu, dall'ispirazione»**, la prima pagina del canvas: navy
+pieno, schede azzurrine, angoli tondi, Poppins, barra in basso col bottone centrale per
+aggiungere una stagione. Ci sono tutte le 25 schermate. La regola che regge tutto: **pieno
+vuol dire confermato da un'altra persona, azzurro vuol dire dichiarato**, per le stagioni e
+per le competenze. Le altre due pagine del canvas, «Stile Apple» e «Timbro e penna», sono
+proposte scartate, tenute per confronto.
+
+Restano aperte tre domande, scritte su un foglietto nel canvas: stagioni in griglia o in
+elenco, i tre numeri sotto la frase della pagina pubblica, il tema scuro.
+
+Non si porta nel codice prima della beta: prima si guarda dove la gente si blocca. La
+gerarchia della pagina pubblica è già sistemata (la prima cosa che si legge nomina chi ha
+confermato); il resto è in `DOPO.md`.
 
 ## Se questa sessione è chiusa
 

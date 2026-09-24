@@ -1,5 +1,11 @@
 # Brief per il design
 
+> **Superato per la parte visiva.** La direzione ora è «Blu, dall'ispirazione», già disegnata
+> su tutte le schermate del canvas (vedi `PASSAGGIO.md`, «Il design»). Qui sotto restano
+> validi i testi delle schermate, le regole che il design non può rompere e i dati di
+> esempio; i colori, il carattere e il timbro descritti più giù sono quelli della prima
+> proposta, scartata.
+
 **Per Mike, prima di tutto.** Il canvas su Claude Design esiste già e l'hai tu:
 <https://claude.ai/artifact/99eUzj74DXGWbq6CXZ3m6p>. Ci sono la pagina pubblica (P1), il
 libretto (L3), la conferma (C3) e la tavola degli elementi. Non ripartire da zero: apri quello
