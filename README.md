@@ -6,6 +6,9 @@ La specifica è in [`SPEC.md`](SPEC.md) e vale come riferimento: quello che non 
 costruisce prima di dicembre. Le decisioni prese stanno in [`DECISIONI.md`](DECISIONI.md), le idee
 rimandate in [`DOPO.md`](DOPO.md).
 
+**Se stai prendendo in mano il progetto adesso**, parti da [`PASSAGGIO.md`](PASSAGGIO.md): come si
+lavora qui e le cose che senza avvertimento si sbagliano.
+
 **Stato: la v1 è costruita** (settimane 1–5) e si sta per mandare online: la beta chiusa della
 settimana 6 ha il suo manuale in [`BETA.md`](BETA.md).
 
