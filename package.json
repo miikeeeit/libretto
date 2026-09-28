@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "postinstall": "npm --prefix functions install",
     "dev": "vite",
     "build": "npm run lint && vite build",
     "preview": "vite preview",
