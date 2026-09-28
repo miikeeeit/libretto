@@ -73,6 +73,8 @@ file: `/code-review high firestore.rules functions/src/ src/lib/`. Una revisione
 senza aver guardato niente è peggio di nessuna revisione — questa è costata dieci difetti
 scoperti tardi, due gravi.
 
+**La località del database sta in `firebase.json`, e deve restarci.** Se il database non esiste, `firebase deploy` lo crea da solo, e senza `firestore.location` lo crea in `nam5`, negli Stati Uniti: è successo al primo deploy vero, il 28 settembre. La località di un database non si cambia più; rimediare costa poco solo finché è vuoto.
+
 **Le funzioni vanno compilate prima degli emulatori.** `npm run emulatori` lo fa da sé;
 lanciare `firebase emulators:start` a mano serve una build vecchia, e le funzioni nuove
 semplicemente non esistono. Se una funzione appena scritta «non c'è», è questo.

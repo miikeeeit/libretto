@@ -43,6 +43,8 @@
     ]
   },
   "firestore": {
+    "database": "(default)",
+    "location": "europe-west8",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
