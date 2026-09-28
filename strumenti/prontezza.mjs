@@ -96,8 +96,25 @@ if (!env) {
     ok('configurazione Firebase completa');
   }
 
-  if (valori.VITE_FIREBASE_API_KEY?.includes('finta')) {
+  const chiave = valori.VITE_FIREBASE_API_KEY ?? '';
+  if (chiave.includes('finta')) {
     blocca('la chiave è quella finta degli emulatori', 'metti quella del progetto vero');
+  } else if (chiave !== '' && !/^AIza[0-9A-Za-z_-]{35}$/.test(chiave)) {
+    // Successo davvero al primo deploy: copiata da una chat che nasconde le chiavi,
+    // arrivò nel .env con dei pallini al posto delle lettere. Il database la
+    // tollerava, l'accesso col telefono no, e l'errore compariva solo sul telefono.
+    blocca(
+      'la chiave API non ha la forma giusta (AIza più 35 caratteri)',
+      'ricopiala dalla console Firebase → Impostazioni progetto → Chiave API web, non da una chat',
+    );
+  }
+
+  const conCaratteriStrani = obbligatorie.filter((c) => /[^\x21-\x7e]/.test(valori[c] ?? ''));
+  if (conCaratteriStrani.length > 0) {
+    blocca(
+      `caratteri non validi in ${conCaratteriStrani.join(', ')}`,
+      'spazi, pallini o lettere accentate: ricopia i valori dalla console Firebase',
+    );
   }
 
   if (
@@ -164,7 +181,11 @@ if (blocchi.length > 0) {
   blocchi.forEach((b) => console.error(`  · ${b}`));
   process.exitCode = 1;
 } else if (avvisi.length > 0) {
-  console.log(`Si può mandare online. ${avvisi.length} cose da tenere a mente:`);
+  console.log(
+    avvisi.length === 1
+      ? 'Si può mandare online. Una cosa da tenere a mente:'
+      : `Si può mandare online. ${avvisi.length} cose da tenere a mente:`,
+  );
   avvisi.forEach((a) => console.log(`  · ${a}`));
 } else {
   console.log('Tutto a posto: si può mandare online.');
