@@ -34,8 +34,9 @@ quella frase cade, non resta niente — è un CV con la grafica più bella.
 
 Le sei settimane del piano (§11) sono fatte e provate: accesso col telefono, profilo,
 stagioni, conferma del responsabile, pagina pubblica, privacy, CV, cancellazione
-dell'account, anti-frode della §8, pulizia notturna. **Non è ancora mai stato messo
-online**: gira solo sugli emulatori.
+dell'account, anti-frode della §8, pulizia notturna. **È online dal 28 settembre** sul
+progetto Firebase `libretto-3e962` (<https://libretto-3e962.web.app>), con database e file a
+Milano. Il deploy lo lancia Mike dal suo Mac; la beta su invito non è ancora partita.
 
 Restano tre cose, e nessuna è codice:
 
