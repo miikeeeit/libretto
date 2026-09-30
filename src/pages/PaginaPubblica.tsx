@@ -11,6 +11,7 @@ import { NOME_APP } from '../config';
 import { nomeCompetenza, nomeRuolo } from '../data/ruoli';
 import { registraEvento } from '../lib/eventi';
 import { urlCv } from '../lib/funzioni';
+import { DA_OSPITE } from '../lib/ospite';
 import { formattaPeriodo } from '../lib/periodo';
 import {
   leggiProfiloPubblico,
@@ -111,7 +112,7 @@ export default function PaginaPubblica() {
             Il link può essere sbagliato, o chi l’ha creato può aver reso privato il suo libretto.
           </p>
           <p className="aiuto">
-            <Link to="/come-funziona">Cos’è {NOME_APP}</Link>
+            <Link to={`/come-funziona?${DA_OSPITE}`}>Cos’è {NOME_APP}</Link>
           </p>
         </div>
       </main>
@@ -298,7 +299,7 @@ export default function PaginaPubblica() {
           lasciare un giudizio negativo, quindi quello che manca non vuol dire niente.
         </p>
         <p className="aiuto">
-          <Link to="/come-funziona">Per saperne di più</Link>
+          <Link to={`/come-funziona?${DA_OSPITE}`}>Per saperne di più</Link>
         </p>
       </section>
     </main>

@@ -4,10 +4,14 @@
 // da un professionista prima del lancio pubblico (PC5). Non è un parere legale.
 // I dati del titolare e l'email sono da completare (`src/config.ts`).
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { EMAIL_PRIVACY, NOME_APP, VERSIONE_INFORMATIVA } from '../config';
+import { DA_OSPITE, useOspite } from '../lib/ospite';
 
 export default function Privacy() {
+  const ospite = useOspite();
+  const navigate = useNavigate();
+
   return (
     <main className="schermata schermata--testo">
       <p className="avviso-bozza">
@@ -99,7 +103,18 @@ export default function Privacy() {
       </p>
 
       <p className="aiuto">
-        <Link to="/">Torna all’inizio</Link> · <Link to="/come-funziona">Come funziona {NOME_APP}</Link>
+        {ospite ? (
+          <>
+            <button type="button" className="bottone-testo" onClick={() => navigate(-1)}>
+              Torna indietro
+            </button>{' '}
+            · <Link to={`/come-funziona?${DA_OSPITE}`}>Come funziona {NOME_APP}</Link>
+          </>
+        ) : (
+          <>
+            <Link to="/">Torna all’inizio</Link> · <Link to="/come-funziona">Come funziona {NOME_APP}</Link>
+          </>
+        )}
       </p>
     </main>
   );

@@ -21,6 +21,7 @@ import {
   type DatiRichiesta,
 } from '../lib/funzioni';
 import { formattaPeriodo } from '../lib/periodo';
+import { DA_OSPITE } from '../lib/ospite';
 import { combaciaConMaschera, normalizzaTelefono } from '../lib/telefono';
 
 const RUOLI_RESPONSABILE = ['titolare', 'direttore', 'responsabile di sala', 'chef', 'altro'];
@@ -122,7 +123,7 @@ export default function Conferma() {
             </p>
           )}
           <p className="aiuto">
-            <a href="/come-funziona">Cos’è {NOME_APP}</a>
+            <a href={`/come-funziona?${DA_OSPITE}`}>Cos’è {NOME_APP}</a>
           </p>
         </div>
       </main>
@@ -532,7 +533,7 @@ export default function Conferma() {
       <p className="aiuto piede-conferma">
         {NOME_APP} raccoglie solo conferme positive: non esiste un modo per dare un giudizio
         negativo. Del tuo numero non si vede niente in pubblico.{' '}
-        <a href="/come-funziona">Come funziona</a>
+        <a href={`/come-funziona?${DA_OSPITE}`}>Come funziona</a>
       </p>
     </main>
   );

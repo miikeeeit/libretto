@@ -1,9 +1,13 @@
 // /come-funziona · le tre righe che spiegano cos'è una conferma verificata (§4.3).
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { NOME_APP } from '../config';
+import { DA_OSPITE, useOspite } from '../lib/ospite';
 
 export default function ComeFunziona() {
+  const ospite = useOspite();
+  const navigate = useNavigate();
+
   return (
     <main className="schermata schermata--testo">
       <h1>Come funziona {NOME_APP}</h1>
@@ -45,7 +49,18 @@ export default function ComeFunziona() {
       </p>
 
       <p className="aiuto">
-        <Link to="/">Entra in {NOME_APP}</Link> · <Link to="/privacy">Informativa privacy</Link>
+        {ospite ? (
+          <>
+            <button type="button" className="bottone-testo" onClick={() => navigate(-1)}>
+              Torna indietro
+            </button>{' '}
+            · <Link to={`/privacy?${DA_OSPITE}`}>Informativa privacy</Link>
+          </>
+        ) : (
+          <>
+            <Link to="/">Entra in {NOME_APP}</Link> · <Link to="/privacy">Informativa privacy</Link>
+          </>
+        )}
       </p>
     </main>
   );
