@@ -29,7 +29,12 @@ export default defineConfig(({ mode }) => {
           display: 'standalone',
           background_color: '#ffffff',
           theme_color: '#1a6b4f',
+          // Le PNG servono a chi non sa usare l'SVG per l'icona sulla schermata Home:
+          // Android per l'app installata, iPhone sempre (vedi apple-touch-icon in index.html).
           icons: [
+            { src: '/icona-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/icona-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/icona-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
             { src: '/icona.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
             { src: '/icona-maskable.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
           ],
