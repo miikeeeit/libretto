@@ -46,9 +46,9 @@ Restano tre cose, e nessuna è codice:
    telefono è attivo, ogni SMS costa, e senza il limite di regione una notte storta si
    misura in centinaia di euro.
 2. **PC5**: informativa e base giuridica riviste da un professionista. La specifica dice di
-   non aprire la registrazione a tutti finché non è fatto. Servono anche due decisioni di
-   Mike: chi è il titolare del trattamento, e quale email per le richieste privacy (in
-   `src/config.ts` oggi c'è un segnaposto).
+   non aprire la registrazione a tutti finché non è fatto. L'email privacy è decisa
+   (`src/config.ts`); nell'informativa mancano ancora il nome e i riferimenti del titolare,
+   che è Mike come persona fisica.
 3. **I numeri dei due responsabili noti** in `responsabiliNoti` (PC4): Bar Somma e il datore
    di lavoro di Mike. I numeri li inserisce lui, non si chiedono in chat.
 
