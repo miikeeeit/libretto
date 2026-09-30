@@ -19,6 +19,7 @@ Le decisioni che spettano a Mike, con la data in cui le ha prese. I punti di con
 | 2026-09-24 | Design · Stagioni nel libretto | **In griglia a due colonne.** I bottoni «Rimanda» e «Correggi» diventano una scritta dentro la scheda. |
 | 2026-09-24 | Design · Numeri sulla pagina pubblica | **Tolti.** In cima resta solo la frase che nomina chi ha confermato. |
 | 2026-09-24 | PC5 · Titolare del trattamento | **Mike come persona fisica**, nessuna ditta per ora. La scheda per il professionista della privacy è pronta (link in `PASSAGGIO.md`). |
+| 2026-09-30 | PC5 · Account inattivi | **Niente cancellazione automatica dopo tre anni**: la frase è tolta dall'informativa (versione 2), invece di implementarla. Gli account restano finché il lavoratore non li cancella. |
 | | PC5 · Informativa rivista da professionista | |
 
 ## Cose da ricordare a Mike

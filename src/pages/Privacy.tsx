@@ -78,8 +78,7 @@ export default function Privacy() {
         stata mandata. Non è una promessa sulla carta: lo fa una procedura automatica ogni notte.
       </p>
       <p>
-        Un link di conferma che nessuno usa scade da solo dopo <strong>30 giorni</strong>. Un
-        account che non si usa da tre anni riceve un avviso e poi viene cancellato.
+        Un link di conferma che nessuno usa scade da solo dopo <strong>30 giorni</strong>.
       </p>
 
       <h2>Se qualcuno dice che una stagione non è vera</h2>

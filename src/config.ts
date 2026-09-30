@@ -6,7 +6,7 @@ export const NOME_APP = 'Libretto';
 export const CLAIM = 'Le tue stagioni, confermate da chi ti ha visto lavorare.';
 
 /** Versione dell'informativa privacy accettata all'accesso. Si alza quando il testo cambia. */
-export const VERSIONE_INFORMATIVA = '1';
+export const VERSIONE_INFORMATIVA = '2';
 
 /** Email per le richieste privacy (§9). Da sostituire con quella definitiva prima del lancio. */
 export const EMAIL_PRIVACY = 'privacy@example.org';

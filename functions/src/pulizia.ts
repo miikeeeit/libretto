@@ -113,9 +113,9 @@ export async function eseguiPulizia(): Promise<EsitoPulizia> {
 // Ogni notte alle tre, ora italiana: nessuno sta usando l'app, e se qualcosa va storto
 // c'è tutta la giornata per accorgersene.
 //
-// Gli account inattivi da tre anni (§9) non sono qui: il primo caso possibile è nel
-// 2029, e per farlo serve leggere l'ultimo accesso da Firebase Auth, che non sta in
-// Firestore. Si aggiunge quando serve, non tre anni prima.
+// Gli account inattivi non si cancellano da soli: la promessa dei tre anni è stata tolta
+// dall'informativa il 2026-09-30 (DECISIONI.md). Se un giorno torna, serve leggere
+// l'ultimo accesso da Firebase Auth, che non sta in Firestore.
 export const pulizia = onSchedule(
   { schedule: '0 3 * * *', timeZone: 'Europe/Rome' },
   async () => {
