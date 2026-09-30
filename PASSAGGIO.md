@@ -78,6 +78,14 @@ scoperti tardi, due gravi.
 
 **La località del database sta in `firebase.json`, e deve restarci.** Se il database non esiste, `firebase deploy` lo crea da solo, e senza `firestore.location` lo crea in `nam5`, negli Stati Uniti: è successo al primo deploy vero, il 28 settembre. La località di un database non si cambia più; rimediare costa poco solo finché è vuoto.
 
+**Un deploy deve arrivare ai telefoni da solo.** Due cose lo garantiscono, e il 30 settembre
+mancavano tutte e due: Mike aveva messo online una correzione e sul telefono vedeva ancora la
+versione vecchia, in incognito no. La prima: le pagine dell'app e `sw.js` hanno `no-cache` in
+`firebase.json`. La regola copriva solo `/index.html`, ma le intestazioni guardano l'indirizzo
+chiesto, non quello riscritto, quindi `/` e `/libretto` restavano in cache per un'ora. La
+seconda: `registerSW` in `src/main.tsx` ricarica la pagina appena trova una versione nuova.
+Senza, la versione nuova si vedeva solo all'apertura successiva.
+
 **Le funzioni vanno compilate prima degli emulatori.** `npm run emulatori` lo fa da sé;
 lanciare `firebase emulators:start` a mano serve una build vecchia, e le funzioni nuove
 semplicemente non esistono. Se una funzione appena scritta «non c'è», è questo.
