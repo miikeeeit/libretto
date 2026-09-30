@@ -40,17 +40,20 @@ Milano. Il deploy lo lancia Mike dal suo Mac. Il 30 settembre Mike ha fatto il p
 dal suo telefono (accesso con invito, profilo, stagione, conferma e revoca) e ha mandato la
 prima richiesta vera al suo datore di lavoro. In `responsabiliNoti` c'è un solo numero.
 
-Restano tre cose, e nessuna è codice:
+Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
+Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
+regione una notte storta si misura in centinaia di euro. Se si apre un progetto nuovo, si
+rifanno per primi.
 
-1. **L'avviso di budget su Blaze** e il limite SMS alla sola Italia. Da quando l'accesso col
-   telefono è attivo, ogni SMS costa, e senza il limite di regione una notte storta si
-   misura in centinaia di euro.
-2. **PC5**: informativa e base giuridica riviste da un professionista. La specifica dice di
+Restano due cose, e nessuna è codice:
+
+1. **PC5**: informativa e base giuridica riviste da un professionista. La specifica dice di
    non aprire la registrazione a tutti finché non è fatto. L'email privacy è decisa
    (`src/config.ts`); nell'informativa mancano ancora il nome e i riferimenti del titolare,
    che è Mike come persona fisica.
-3. **I numeri dei due responsabili noti** in `responsabiliNoti` (PC4): Bar Somma e il datore
-   di lavoro di Mike. I numeri li inserisce lui, non si chiedono in chat.
+2. **I numeri dei due responsabili noti** in `responsabiliNoti` (PC4): Bar Somma e il datore
+   di lavoro di Mike. Il 30 settembre ce n'è uno. I numeri li inserisce lui, non si chiedono
+   in chat.
 
 ## Come si lavora qui: le regole di Mike
 
