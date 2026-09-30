@@ -36,7 +36,9 @@ Le sei settimane del piano (§11) sono fatte e provate: accesso col telefono, pr
 stagioni, conferma del responsabile, pagina pubblica, privacy, CV, cancellazione
 dell'account, anti-frode della §8, pulizia notturna. **È online dal 28 settembre** sul
 progetto Firebase `libretto-3e962` (<https://libretto-3e962.web.app>), con database e file a
-Milano. Il deploy lo lancia Mike dal suo Mac; la beta su invito non è ancora partita.
+Milano. Il deploy lo lancia Mike dal suo Mac. Il 30 settembre Mike ha fatto il primo giro vero
+dal suo telefono (accesso con invito, profilo, stagione, conferma e revoca) e ha mandato la
+prima richiesta vera al suo datore di lavoro. In `responsabiliNoti` c'è un solo numero.
 
 Restano tre cose, e nessuna è codice:
 
