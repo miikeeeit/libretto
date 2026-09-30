@@ -18,7 +18,14 @@ export function normalizzaCodice(grezzo: string): string {
   return grezzo.trim().toLowerCase().replace(/\s+/g, '');
 }
 
-/** Controllo prima dell'SMS: il codice esiste, è attivo e non l'ha già usato un altro. */
+/**
+ * Controllo prima dell'SMS: il codice esiste ed è attivo.
+ *
+ * Un codice già usato qui passa: prima dell'SMS non si sa ancora chi sta entrando, e
+ * può essere chi l'ha usato, che torna dopo essere uscito o aver reinstallato l'app.
+ * Di chi è il codice lo decide `collegaInvito` dopo la verifica del telefono.
+ * Fermarlo qui chiudeva fuori proprio il suo proprietario (successo al primo giro vero).
+ */
 export async function controllaInvito(codice: string): Promise<EsitoInvito> {
   const pulito = normalizzaCodice(codice);
   if (pulito === '') return { ok: false, motivo: 'Scrivi il codice di invito.' };
@@ -28,7 +35,6 @@ export async function controllaInvito(codice: string): Promise<EsitoInvito> {
 
   const dati = snap.data();
   if (dati.attivo !== true) return { ok: false, motivo: 'Questo codice non è più valido.' };
-  if (dati.usatoDa != null) return { ok: false, motivo: 'Questo codice è già stato usato.' };
 
   return { ok: true };
 }

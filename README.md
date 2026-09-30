@@ -129,7 +129,7 @@ Da caricare prima della beta (PC4): **Bar Somma** e **il tuo datore di lavoro**.
 npm run lint            # i tipi, anche quelli delle funzioni
 npm test                # le regole di sicurezza: 62 prove, sull'emulatore
 npm run prova:rottura   # i 46 casi di rottura, chiamando le funzioni a mano
-npm run prova:flusso    # i 24 passaggi del flusso vero in un browser
+npm run prova:flusso    # i 25 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito
 ```
 

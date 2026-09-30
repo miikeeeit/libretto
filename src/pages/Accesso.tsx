@@ -11,12 +11,25 @@ import { useVerificaTelefono } from '../auth/useVerificaTelefono';
 import { BETA_SU_INVITO, CLAIM, NOME_APP } from '../config';
 import { messaggioErrore } from '../lib/errori';
 import { registraEvento } from '../lib/eventi';
+import { auth } from '../lib/firebase';
 import { collegaInvito, controllaInvito, invitoGiaCollegato, normalizzaCodice } from '../lib/inviti';
 import { formattaTelefono, normalizzaTelefono } from '../lib/telefono';
 
 const ATTESA_RINVIO = 30;
 /** Il codice di invito resta qui per il momento tra la verifica e la creazione del profilo. */
 const CHIAVE_INVITO = 'libretto.invito';
+/**
+ * Il motivo per cui si è stati fatti uscire subito dopo la verifica. Appena il telefono è
+ * verificato l'app passa alla creazione del profilo, e questa schermata sparisce prima di
+ * poterlo mostrare: così il messaggio la aspetta quando si torna qui.
+ */
+const CHIAVE_ERRORE = 'libretto.erroreAccesso';
+
+// Si legge senza cancellarlo: in sviluppo React chiama due volte l'inizializzazione, e
+// la seconda lo troverebbe già sparito. Si cancella dopo, una volta mostrato.
+function erroreInSospeso(): string | null {
+  return sessionStorage.getItem(CHIAVE_ERRORE);
+}
 
 export default function Accesso() {
   const [passo, setPasso] = useState<'numero' | 'codice'>('numero');
@@ -25,12 +38,16 @@ export default function Accesso() {
   const [maggiorenne, setMaggiorenne] = useState(false);
   const [informativa, setInformativa] = useState(false);
   const [codice, setCodice] = useState('');
-  const [errore, setErrore] = useState<string | null>(null);
+  const [errore, setErrore] = useState<string | null>(erroreInSospeso);
   const [inCorso, setInCorso] = useState(false);
   const [secondiRinvio, setSecondiRinvio] = useState(0);
 
   const { mandaCodice: chiediSms, verificaCodice: controllaSms, codiceChiesto } = useVerificaTelefono();
   const numeroE164 = useRef<string>('');
+
+  useEffect(() => {
+    sessionStorage.removeItem(CHIAVE_ERRORE);
+  }, []);
 
   useEffect(() => {
     if (secondiRinvio <= 0) return;
@@ -98,6 +115,12 @@ export default function Accesso() {
         if (!(await invitoGiaCollegato(pulito, uid))) {
           const esito = await collegaInvito(pulito, uid);
           if (!esito.ok) {
+            // Il codice è di un altro numero: si esce subito, altrimenti si resterebbe
+            // collegati senza un invito e l'app porterebbe a creare un profilo che le
+            // regole poi rifiutano.
+            sessionStorage.setItem(CHIAVE_ERRORE, esito.motivo);
+            await auth.signOut();
+            setPasso('numero');
             setErrore(esito.motivo);
             return;
           }

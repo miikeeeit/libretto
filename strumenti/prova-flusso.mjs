@@ -503,6 +503,19 @@ try {
   }
   fatto(`i dati si scaricano: ${scaricato.suggestedFilename()}`);
 
+  // ---- Uscire e rientrare con lo stesso codice ----------------------------
+  // Al primo giro vero il codice già usato chiudeva fuori proprio chi l'aveva usato.
+  await page.getByText('Torna al libretto').click();
+  await page.getByRole('button', { name: /Esci da/ }).click();
+  await page.getByRole('heading', { name: 'Entra col tuo numero' }).waitFor({ timeout: 20000 });
+  await accedi('347 123 4567');
+  await page.getByRole('heading', { name: 'Scrivi il codice' }).waitFor({ timeout: 20000 });
+  await page.getByLabel('Codice di sei cifre').fill(await codiceSms());
+  await page.getByRole('button', { name: 'Entra' }).click();
+  await page.getByRole('heading', { name: 'Le tue stagioni' }).waitFor({ timeout: 20000 });
+  fatto('chi esce rientra col suo stesso codice di invito');
+  await page.getByText('Impostazioni e privacy').click();
+
   // ---- L6: eliminare l'account -------------------------------------------
   // §1, regola 3: con un tap sparisce tutto. È la prova che la promessa è vera.
   await page.getByRole('button', { name: 'Voglio eliminare il mio account' }).click();
@@ -534,10 +547,16 @@ try {
 
   // ---- Il codice di invito è bruciato --------------------------------------
   // Dopo l'eliminazione si è già fuori: si prova a rientrare con lo stesso invito.
+  // Un codice già usato non si ferma più prima dell'SMS (potrebbe essere il suo
+  // proprietario che rientra): si ferma dopo la verifica, e si esce subito.
   await accedi('348 999 8877');
+  await page.getByRole('heading', { name: 'Scrivi il codice' }).waitFor({ timeout: 20000 });
+  await page.getByLabel('Codice di sei cifre').fill(await codiceSms());
+  await page.getByRole('button', { name: 'Entra' }).click();
   const avviso = await page.locator('.errore').innerText({ timeout: 20000 });
   if (!avviso.includes('già stato usato')) throw new Error(`Avviso inatteso: "${avviso}"`);
-  fatto(`un secondo numero non riusa lo stesso invito: "${avviso}"`);
+  await page.getByRole('heading', { name: 'Entra col tuo numero' }).waitFor({ timeout: 20000 });
+  fatto(`un secondo numero non riusa lo stesso invito, e resta fuori: "${avviso}"`);
 
   // ---- Un codice inventato non fa partire nessun SMS ----------------------
   await page.reload({ waitUntil: 'load' });
