@@ -6,10 +6,10 @@ export const NOME_APP = 'Libretto';
 export const CLAIM = 'Le tue stagioni, confermate da chi ti ha visto lavorare.';
 
 /** Versione dell'informativa privacy accettata all'accesso. Si alza quando il testo cambia. */
-export const VERSIONE_INFORMATIVA = '2';
+export const VERSIONE_INFORMATIVA = '3';
 
-/** Email per le richieste privacy (§9). Da sostituire con quella definitiva prima del lancio. */
-export const EMAIL_PRIVACY = 'privacy@example.org';
+/** Email per le richieste privacy (§9): il secondo indirizzo di Mike, scelto il 2026-09-30. */
+export const EMAIL_PRIVACY = 'mikeitcommercial@gmail.com';
 
 /** La stagione per cui si dichiara la disponibilità (§4.3: "Disponibile per la stagione 2027"). */
 export const STAGIONE_DISPONIBILITA = '2027';

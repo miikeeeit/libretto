@@ -27,8 +27,7 @@ export default function Privacy() {
         tuoi dati scrivi a <a href={`mailto:${EMAIL_PRIVACY}`}>{EMAIL_PRIVACY}</a>.
       </p>
       <p className="aiuto">
-        Da completare prima del lancio: il nome e i riferimenti del titolare, e un indirizzo email
-        vero per le richieste privacy (oggi qui c’è un segnaposto).
+        Da completare prima del lancio: il nome e i riferimenti del titolare.
       </p>
 
       <h2>Cosa raccogliamo di te, se sei un lavoratore</h2>
