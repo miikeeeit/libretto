@@ -130,7 +130,7 @@ macchina. Usare le equivalenti disponibili e dirlo, invece di annunciare skill n
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # 62 prove sulle regole di sicurezza
+npm test                # 63 prove sulle regole di sicurezza
 npm run prova:rottura   # 46 casi, chiamando le funzioni a mano
 npm run prova:flusso    # 25 passaggi in browser, tre finestre
 ```

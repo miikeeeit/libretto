@@ -537,6 +537,14 @@ describe('quello che solo le Cloud Functions possono toccare', () => {
     await assertSucceeds(getDoc(doc(senzaCollegarsi(), 'profiliPubblici', SLUG)));
     await assertFails(setDoc(doc(comeMario(), 'profiliPubblici', SLUG), { nome: 'Mario il Grande' }));
   });
+
+  // «Raggiungibile solo da chi ha il tuo link» (L6, informativa): chi non conosce
+  // l'indirizzo non deve poter scaricare l'elenco di tutti i profili. Con `read` al
+  // posto di `get` si poteva, con una riga, anche senza essere collegati.
+  it('i profili pubblici non si possono elencare, nemmeno da collegati', async () => {
+    await assertFails(getDocs(collection(senzaCollegarsi(), 'profiliPubblici')));
+    await assertFails(getDocs(collection(comeAltro(), 'profiliPubblici')));
+  });
 });
 
 describe('strutture', () => {

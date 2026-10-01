@@ -240,8 +240,14 @@ service cloud.firestore {
     // ---- Profili pubblici ----------------------------------------------------
     // Li scrive solo `pubblicaProfilo`, e contengono solo dati già filtrati dalla
     // privacy: è per questo che si possono leggere senza essere collegati.
+    //
+    // Uno alla volta, e solo conoscendo l'indirizzo: `get`, non `read`. Con `read`
+    // chiunque poteva scaricare l'elenco di tutti i profili con una riga, e la promessa
+    // «raggiungibile solo da chi ha il tuo link» era falsa (trovato il 2026-10-01).
+    // La ricerca per i datori (fase 2) non passerà da qui: avrà un suo permesso.
     match /profiliPubblici/{slug} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if false;
       allow write: if false;
     }
 
