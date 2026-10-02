@@ -105,7 +105,22 @@ export const creaRichiesta = onCall(async (richiesta) => {
     .where('stato', '==', 'aperta')
     .get();
   const diQuestaStagione = aperte.docs.filter((d) => d.data().stagioneId === stagioneId);
-  const altreAperte = aperte.size - diQuestaStagione.length;
+
+  // Un link «aperto» la cui stagione non lo aspetta più — cancellata, corretta, già
+  // rimandata — non aspetta niente: non si conta, e si chiude qui. Prima contava nel
+  // limite fino alla scadenza, 30 giorni dopo.
+  const morte: typeof aperte.docs = [];
+  let altreAperte = 0;
+  for (const altra of aperte.docs) {
+    if (altra.data().stagioneId === stagioneId) continue;
+    const suaStagione = await db.doc(`workers/${workerUid}/stagioni/${altra.data().stagioneId}`).get();
+    const laAspetta =
+      suaStagione.exists &&
+      suaStagione.data()?.richiestaId === altra.id &&
+      suaStagione.data()?.stato === 'in_attesa';
+    if (laAspetta) altreAperte += 1;
+    else morte.push(altra);
+  }
   if (altreAperte >= MAX_RICHIESTE_APERTE) {
     throw new HttpsError(
       'resource-exhausted',
@@ -121,7 +136,7 @@ export const creaRichiesta = onCall(async (richiesta) => {
   // Si revocano solo link di questo lavoratore e di questa stagione, trovati dal
   // server: non quello scritto sulla stagione, che un tempo il client poteva scegliere
   // (chi conosceva il link di un altro poteva farlo revocare da qui).
-  for (const vecchia of diQuestaStagione) {
+  for (const vecchia of [...diQuestaStagione, ...morte]) {
     lotto.update(vecchia.ref, { stato: 'revocata' });
   }
 

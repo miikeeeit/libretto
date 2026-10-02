@@ -184,8 +184,10 @@ export const urlCv = onCall(async (chiamata) => {
     throw new HttpsError('not-found', 'Questo profilo non ha un CV da mostrare.');
   }
 
-  // Dal documento pubblico non si risale a chi è: l'uid si ritrova dalla prenotazione
-  // dello slug, che il client non può leggere.
+  // L'uid si ritrova dalla prenotazione dello slug, non da quello che manda il client.
+  // (Nel documento pubblico l'uid in realtà c'è, dentro `fotoPath` = "foto/<uid>": non è
+  // un segreto, perché ogni regola chiede di essere quell'utente col suo telefono
+  // verificato, e saperlo non apre niente. Controllato il 2026-10-02.)
   const prenotazione = await db.doc(`slugs/${slug}`).get();
   const uid = prenotazione.data()?.uid;
   if (!uid) throw new HttpsError('not-found', 'Questo profilo non esiste più.');

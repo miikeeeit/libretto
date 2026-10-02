@@ -279,7 +279,9 @@ async function aggiornaResponsabileNoto(
 ): Promise<void> {
   const inLista = await db.doc(`responsabiliNoti/${telefono}`).get();
   if (inLista.exists) {
-    await db.doc(`responsabili/${responsabileUid}`).set({ verificatoAdmin: true }, { merge: true });
+    await db
+      .doc(`responsabili/${responsabileUid}`)
+      .set({ verificatoAdmin: true, verificatoDa: 'lista' }, { merge: true });
     return;
   }
 
@@ -291,8 +293,36 @@ async function aggiornaResponsabileNoto(
 
   const lavoratoriDiversi = new Set(suoi.docs.map((d) => (d.data() as { workerUid: string }).workerUid));
   if (lavoratoriDiversi.size >= CONFERME_PER_RESPONSABILE_NOTO) {
-    await db.doc(`responsabili/${responsabileUid}`).set({ verificatoAdmin: true }, { merge: true });
+    // `verificatoDa` dice da dove viene il titolo: quello guadagnato con le conferme si
+    // può perdere con una revoca, quello della lista di Mike no.
+    await db
+      .doc(`responsabili/${responsabileUid}`)
+      .set({ verificatoAdmin: true, verificatoDa: 'conferme' }, { merge: true });
   }
+}
+
+/**
+ * Dopo una revoca: se il titolo di «noto» era arrivato dalle conferme e ora non c'è più
+ * nessuna struttura con tre lavoratori diversi confermati, si toglie. Prima restava per
+ * sempre. Non tocca mai il titolo dato dalla lista di Mike, né uno messo a mano dalla
+ * console (che non ha `verificatoDa`).
+ */
+async function ricontrollaResponsabileNoto(responsabileUid: string): Promise<void> {
+  const ref = db.doc(`responsabili/${responsabileUid}`);
+  const responsabile = await ref.get();
+  if (responsabile.data()?.verificatoDa !== 'conferme') return;
+
+  const sue = await db.collection('conferme').where('responsabileUid', '==', responsabileUid).get();
+  const lavoratoriPerStruttura = new Map<string, Set<string>>();
+  for (const d of sue.docs) {
+    const { strutturaId, workerUid } = d.data() as { strutturaId: string; workerUid: string };
+    if (!lavoratoriPerStruttura.has(strutturaId)) lavoratoriPerStruttura.set(strutturaId, new Set());
+    lavoratoriPerStruttura.get(strutturaId)!.add(workerUid);
+  }
+  const ancoraNoto = [...lavoratoriPerStruttura.values()].some(
+    (lavoratori) => lavoratori.size >= CONFERME_PER_RESPONSABILE_NOTO,
+  );
+  if (!ancoraNoto) await ref.set({ verificatoAdmin: false, verificatoDa: null }, { merge: true });
 }
 
 /**
@@ -453,6 +483,8 @@ export const revocaConferma = onCall(async (chiamata) => {
       tx.update(strutturaRef, { nConferme: FieldValue.increment(-1) });
     }
   });
+
+  await ricontrollaResponsabileNoto(dati.responsabileUid);
 
   return { ok: true };
 });

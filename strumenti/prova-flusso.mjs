@@ -606,7 +606,20 @@ try {
   console.log('\nTutto a posto.');
 } catch (errore) {
   console.error(`\nPROVA FALLITA: ${errore.message}`);
-  await schermata(page, 'errore');
+  // Ogni tanto (2 volte su una dozzina, a fine settembre e il 2 ottobre) un'attesa di
+  // 20 secondi scadeva in punti diversi, e non si è riusciti a riprodurlo. Perché la
+  // prossima volta si capisca, al fallimento si stampa cosa mostrava ogni finestra:
+  // l'indirizzo, l'avviso d'errore se c'era, e una schermata per ognuna.
+  for (const [i, contesto] of browser.contexts().entries()) {
+    for (const [j, aperta] of contesto.pages().entries()) {
+      const avvisi = await aperta
+        .locator('.errore')
+        .allInnerTexts()
+        .catch(() => []);
+      console.error(`  finestra ${i}.${j}: ${aperta.url()}${avvisi.length ? ` — avviso: ${avvisi.join(' | ')}` : ''}`);
+      await schermata(aperta, `errore-${i}-${j}`).catch(() => undefined);
+    }
+  }
   if (problemi.length > 0) console.error(`  ${problemi.join('\n  ')}`);
   process.exitCode = 1;
 } finally {

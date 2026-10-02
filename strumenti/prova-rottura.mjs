@@ -595,6 +595,48 @@ await titolo('I limiti della §8.4');
       mario,
     ),
   );
+
+  // Una stagione cancellata non aspetta più il suo link: non deve contare nel limite.
+  await fetch(`${documenti}/workers/${mario.uid}/stagioni/stagione-0`, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer owner' },
+  });
+  await deveRiuscire(
+    'cancellata una stagione in attesa, la sesta richiesta passa',
+    chiama(
+      'creaRichiesta',
+      { stagioneId: 'stagione-5', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393485000099' },
+      mario,
+    ),
+  );
+}
+
+await titolo('Il «responsabile noto» guadagnato e perso');
+{
+  // Tre lavoratori diversi nella stessa struttura lo rendono noto; una revoca che lo
+  // porta sotto la soglia glielo toglie.
+  await azzera();
+  const responsabile = await entra('348 510 0009');
+  const token = [];
+  for (let i = 0; i < 3; i += 1) {
+    const lavoratore = await preparaLavoratore(`347 510 000${i}`, `Lav${i}`, `inv-${i}`);
+    await creaStagione(lavoratore.uid, 'sua');
+    const esito = await chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393485100009' },
+      lavoratore,
+    );
+    token.push(esito.risultato.token);
+    await chiama('confermaStagione', { token: esito.risultato.token, ...CONFERMA_VALIDA }, responsabile);
+  }
+  const prima = await leggi(`responsabili/${responsabile.uid}`);
+  if (prima?.fields?.verificatoAdmin?.booleanValue === true) ok('tre lavoratori diversi: diventa noto');
+  else no('tre lavoratori diversi: diventa noto', JSON.stringify(prima?.fields?.verificatoAdmin));
+
+  await chiama('revocaConferma', { token: token[0] }, responsabile);
+  const dopo = await leggi(`responsabili/${responsabile.uid}`);
+  if (dopo?.fields?.verificatoAdmin?.booleanValue === false) ok('una revoca sotto la soglia toglie il titolo');
+  else no('una revoca sotto la soglia toglie il titolo', JSON.stringify(dopo?.fields?.verificatoAdmin));
 }
 
 // ---- Il tetto di conferme per numero -----------------------------------
