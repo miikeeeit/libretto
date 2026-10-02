@@ -127,17 +127,18 @@ già `disponibile`, `stagioneDisponibile`, `ruoloPrincipale` e il `geohash` del 
 **Attenzione al significato di `disponibile`.** Oggi vuol dire solo «mostra il badge sulla mia
 pagina». Non è un consenso a comparire nelle ricerche, e non va riusato come tale: chi l'ha
 acceso in V1 non ha accettato di farsi trovare da sconosciuti. La fase 2 vuole un interruttore
-nuovo, una versione nuova dell'informativa e un consenso nuovo.
+nuovo, una versione nuova dell'informativa e un consenso nuovo (deciso il 2 ottobre: vedi
+`DECISIONI.md`).
 
 **Densità.** La specifica risponde già: la ricerca si accende con circa 50 profili confermati in
 zona (§2, §11).
 
-**«Il filtro deciso: grandi catene no».** Non è in `DECISIONI.md`. Se Mike l'ha deciso, va
-scritto lì con la data; se no, è una decisione aperta.
+**«Il filtro deciso: grandi catene no».** Deciso il 2 ottobre, con criteri precisi: vedi
+`DECISIONI.md`.
 
 **Le notifiche.** La V1 non ne ha: il canale è WhatsApp. Le notifiche web su iPhone arrivano solo
 con l'app installata sulla schermata Home, e i messaggi WhatsApp automatici si pagano uno per uno.
-Il canale è una scelta da fare prima di promettere «ricevi una notifica».
+Canale deciso il 2 ottobre: vedi `DECISIONI.md`.
 
 **Il passo 5** è l'idea più forte: ogni assunzione produce una conferma. Vale con le stesse
 regole di oggi: il link arriva al numero verificato del datore, e conferma solo lui.
