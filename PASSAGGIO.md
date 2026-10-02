@@ -89,6 +89,13 @@ chiesto, non quello riscritto, quindi `/` e `/libretto` restavano in cache per u
 seconda: `registerSW` in `src/main.tsx` ricarica la pagina appena trova una versione nuova.
 Senza, la versione nuova si vedeva solo all'apertura successiva.
 
+**Gli indici l'emulatore non li chiede, Firestore vero sì.** Una query che vuole un indice
+composto, o una `collectionGroup`, sull'emulatore funziona sempre; online, senza l'indice in
+`firestore.indexes.json`, fallisce. Il 2 ottobre si è scoperto così che la pulizia notturna non
+poteva funzionare online: le mancavano due indici, e una passata rotta fermava anche le altre,
+compresa la cancellazione dopo 90 giorni. Ogni query nuova con due condizioni su campi diversi
+(o un `where` più un intervallo) va controllata contro quel file.
+
 **Le funzioni vanno compilate prima degli emulatori.** `npm run emulatori` lo fa da sé;
 lanciare `firebase emulators:start` a mano serve una build vecchia, e le funzioni nuove
 semplicemente non esistono. Se una funzione appena scritta «non c'è», è questo.
@@ -130,9 +137,9 @@ macchina. Usare le equivalenti disponibili e dirlo, invece di annunciare skill n
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # 63 prove sulle regole di sicurezza
-npm run prova:rottura   # 46 casi, chiamando le funzioni a mano
-npm run prova:flusso    # 25 passaggi in browser, tre finestre
+npm test                # 65 prove sulle regole di sicurezza
+npm run prova:rottura   # 53 casi, chiamando le funzioni a mano
+npm run prova:flusso    # 27 passaggi in browser, tre finestre
 ```
 
 Guardano tre cose **diverse**, e conviene sapere quale:

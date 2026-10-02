@@ -417,6 +417,40 @@ describe('stagioni', () => {
     );
   });
 
+  // Il link di una stagione lo scrive solo creaRichiesta. Se lo scrivesse il client,
+  // chi conosce il link di un altro — per esempio perché gli è arrivato da responsabile —
+  // potrebbe metterlo su una sua stagione e farlo revocare da creaRichiesta, che chiude
+  // il link precedente della stagione prima di mandarne uno nuovo.
+  it('il link di una stagione non si scrive dal client, né creandola né correggendola', async () => {
+    await assertFails(
+      setDoc(doc(comeMario(), ...percorso, 'conLink'), stagione({ richiestaId: 'token-di-un-altro' })),
+    );
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'esistente'), {
+        richiestaId: 'token-di-un-altro',
+        stato: 'bozza',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('un periodo non finisce prima di cominciare', async () => {
+    await assertFails(
+      setDoc(doc(comeMario(), ...percorso, 'rovescia'), stagione({ dal: '2025-09', al: '2025-05' })),
+    );
+    await assertFails(
+      updateDoc(doc(comeMario(), ...percorso, 'esistente'), {
+        dal: '2025-09',
+        al: '2025-05',
+        stato: 'bozza',
+        updatedAt: new Date(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(comeMario(), ...percorso, 'unMese'), stagione({ dal: '2025-07', al: '2025-07' })),
+    );
+  });
+
   it('non si mette da soli lo stato «scaduta» o «non confermata»', async () => {
     // Li scrive solo la Cloud Function: "scaduta" la pulizia notturna, "non confermata"
     // il responsabile che dice che non corrisponde.

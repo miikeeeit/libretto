@@ -4,17 +4,27 @@
 
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { NOME_APP } from '../config';
+import { BETA_SU_INVITO, NOME_APP } from '../config';
 import { cercaComuni, comunePerId } from '../data/comuni';
 import { RUOLI } from '../data/ruoli';
 import { messaggioErrore } from '../lib/errori';
+import { registraEvento } from '../lib/eventi';
+import { collegaInvito, invitoGiaCollegato, normalizzaCodice } from '../lib/inviti';
+import { formattaTelefono } from '../lib/telefono';
 import { creaProfilo } from '../lib/worker';
 import { invitoInSospeso, scartaInvitoInSospeso } from './Accesso';
 
 const MAX_FOTO_MB = 5;
 
 export default function CreaProfilo() {
-  const { utente, ricaricaWorker } = useAuth();
+  const { utente, ricaricaWorker, esci } = useAuth();
+  // Il codice di solito arriva da L1. Se manca — app chiusa fra l'SMS e questa pagina,
+  // navigazione privata, un responsabile finito qui per sbaglio — lo si chiede qui,
+  // invece di lasciare un modulo che le regole rifiuteranno comunque. Si guarda al
+  // momento di salvare, non all'apertura: L1 lo mette da parte un istante dopo che
+  // questa pagina è già comparsa.
+  const [chiediInvito, setChiediInvito] = useState(false);
+  const [invito, setInvito] = useState('');
   const [nome, setNome] = useState('');
   const [cognome, setCognome] = useState('');
   const [ruolo, setRuolo] = useState('');
@@ -37,8 +47,9 @@ export default function CreaProfilo() {
       setAnteprima(null);
       return;
     }
-    if (!file.type.startsWith('image/')) {
-      setErrore('La foto deve essere un’immagine.');
+    // Gli stessi formati che accettano le regole di Storage.
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(file.type)) {
+      setErrore('La foto deve essere un’immagine JPG, PNG o WebP.');
       return;
     }
     if (file.size > MAX_FOTO_MB * 1024 * 1024) {
@@ -65,19 +76,37 @@ export default function CreaProfilo() {
       setErrore('Scegli il tuo comune dall’elenco.');
       return;
     }
+    let codice = BETA_SU_INVITO ? invitoInSospeso(utente.uid) : null;
+    if (BETA_SU_INVITO && codice === null && normalizzaCodice(invito) === '') {
+      setChiediInvito(true);
+      setErrore('Scrivi il codice di invito con cui sei entrato.');
+      return;
+    }
 
     setInCorso(true);
     try {
+      if (BETA_SU_INVITO && codice === null) {
+        codice = normalizzaCodice(invito);
+        if (!(await invitoGiaCollegato(codice, utente.uid))) {
+          const esito = await collegaInvito(codice, utente.uid);
+          if (!esito.ok) {
+            setErrore(esito.motivo);
+            return;
+          }
+        }
+      }
+
       await creaProfilo(utente.uid, {
         nome,
         cognome,
         ruoloPrincipale: ruolo,
         comuneId,
         telefono: utente.phoneNumber ?? '',
-        invito: invitoInSospeso(),
+        invito: codice,
         foto,
       });
       scartaInvitoInSospeso();
+      await registraEvento('registrazione', utente.uid);
       await ricaricaWorker();
     } catch (e) {
       setErrore(messaggioErrore(e));
@@ -191,6 +220,21 @@ export default function CreaProfilo() {
           </p>
         )}
 
+        {chiediInvito && (
+          <label className="campo">
+            Codice di invito
+            <input
+              type="text"
+              autoComplete="off"
+              placeholder="es. somma-2026"
+              value={invito}
+              onChange={(e) => setInvito(e.target.value)}
+              required
+            />
+            <span className="aiuto">È quello che hai scritto per entrare.</span>
+          </label>
+        )}
+
         {errore && (
           <p className="errore" role="alert">
             {errore}
@@ -200,6 +244,13 @@ export default function CreaProfilo() {
         <button type="submit" className="bottone bottone--principale" disabled={inCorso}>
           {inCorso ? 'Creo…' : `Crea il mio ${NOME_APP.toLowerCase()}`}
         </button>
+
+        <p className="aiuto">
+          {utente?.phoneNumber ? `Sei entrato col ${formattaTelefono(utente.phoneNumber)}. ` : ''}
+          <button type="button" className="bottone-testo" onClick={() => void esci()}>
+            Non sei tu? Esci
+          </button>
+        </p>
       </form>
     </main>
   );

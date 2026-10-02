@@ -87,7 +87,7 @@ export default function Conferma() {
   // Link non valido: un messaggio chiaro e nient'altro (§4.2 C1). Di chi fosse la
   // richiesta non si dice niente.
   if (!dati || dati.stato !== 'aperta') {
-    const usataDaChiChiama = dati?.stato === 'usata' && dati.numeroCoincide;
+    const usataDaChiChiama = dati?.stato === 'usata' && dati.numeroCoincide && dati.revocabile === true;
     return (
       <main className="schermata schermata--centrata">
         <div className="scheda">

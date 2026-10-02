@@ -10,13 +10,19 @@ import { Link } from 'react-router-dom';
 import { useVerificaTelefono } from '../auth/useVerificaTelefono';
 import { BETA_SU_INVITO, CLAIM, NOME_APP } from '../config';
 import { messaggioErrore } from '../lib/errori';
-import { registraEvento } from '../lib/eventi';
 import { auth } from '../lib/firebase';
 import { collegaInvito, controllaInvito, invitoGiaCollegato, normalizzaCodice } from '../lib/inviti';
 import { formattaTelefono, normalizzaTelefono } from '../lib/telefono';
 
 const ATTESA_RINVIO = 30;
-/** Il codice di invito resta qui per il momento tra la verifica e la creazione del profilo. */
+/**
+ * Il codice di invito resta qui tra la verifica e la creazione del profilo. In
+ * `localStorage`, non in `sessionStorage`: se il telefono chiude l'app in mezzo (succede
+ * scegliendo la foto), al ritorno si è ancora collegati e il codice deve esserci ancora.
+ * Con `sessionStorage` spariva, e senza codice le regole rifiutavano il profilo: si
+ * restava fermi su L2 senza via d'uscita. Si salva insieme all'uid, così un codice
+ * rimasto da un'altra persona sullo stesso telefono non vale.
+ */
 const CHIAVE_INVITO = 'libretto.invito';
 /**
  * Il motivo per cui si è stati fatti uscire subito dopo la verifica. Appena il telefono è
@@ -125,11 +131,12 @@ export default function Accesso() {
             return;
           }
         }
-        sessionStorage.setItem(CHIAVE_INVITO, pulito);
+        conservaInvito(uid, pulito);
       }
 
-      await registraEvento('registrazione', uid);
       // Da qui in poi decide App: profilo da creare (L2) o libretto (L3).
+      // L'evento «registrazione» lo segna L2 quando il profilo nasce: qui si passa anche
+      // a ogni rientro, e i conti della §12 venivano gonfiati.
     } catch (e) {
       setErrore(messaggioErrore(e));
     } finally {
@@ -265,11 +272,31 @@ export default function Accesso() {
   );
 }
 
-/** Il codice di invito messo da parte all'accesso, per la creazione del profilo (L2). */
-export function invitoInSospeso(): string | null {
-  return sessionStorage.getItem(CHIAVE_INVITO);
+function conservaInvito(uid: string, codice: string): void {
+  try {
+    localStorage.setItem(CHIAVE_INVITO, JSON.stringify({ uid, codice }));
+  } catch {
+    // Memoria del browser chiusa (navigazione privata): L2 chiederà il codice.
+  }
+}
+
+/** Il codice di invito messo da parte all'accesso da questo uid, per la creazione del profilo (L2). */
+export function invitoInSospeso(uid: string): string | null {
+  try {
+    const salvato = JSON.parse(localStorage.getItem(CHIAVE_INVITO) ?? 'null') as {
+      uid?: string;
+      codice?: string;
+    } | null;
+    return salvato?.uid === uid && typeof salvato.codice === 'string' ? salvato.codice : null;
+  } catch {
+    return null;
+  }
 }
 
 export function scartaInvitoInSospeso(): void {
-  sessionStorage.removeItem(CHIAVE_INVITO);
+  try {
+    localStorage.removeItem(CHIAVE_INVITO);
+  } catch {
+    // Niente da togliere.
+  }
 }

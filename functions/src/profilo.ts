@@ -277,6 +277,12 @@ export const eliminaAccount = onCall(async (chiamata) => {
   await db.doc(`responsabili/${uid}`).delete().catch(() => undefined);
 
   await db.doc(`sospensioni/${uid}`).delete().catch(() => undefined);
+
+  // Anche le segnalazioni su di lui. Restavano attaccate a un uid che con l'accesso
+  // cancellato non esiste più: non servivano a niente contro chi rientra (avrebbe un uid
+  // nuovo), ed erano dati suoi rimasti dopo un «elimina tutto».
+  const segnalazioni = await db.collection('segnalazioni').where('workerUid', '==', uid).get();
+  await aLotti(segnalazioni.docs.map((d) => (lotto: WriteBatch) => lotto.delete(d.ref)));
   await db.recursiveDelete(db.doc(`workers/${uid}`));
 
   // La copia pubblica si cancella **per ultima**, dopo il profilo: cancellandola prima,

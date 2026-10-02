@@ -94,14 +94,18 @@ export const creaRichiesta = onCall(async (richiesta) => {
 
   await colleghiNonSiConfermano(telefonoResponsabile, workerUid, stagione.strutturaId, stagione);
 
-  // §8.4: non più di cinque richieste aperte per volta. Quella che si sta rimandando
-  // non si conta, perché sta per essere revocata.
+  // §8.4: non più di cinque richieste aperte per volta. Quelle di questa stagione non si
+  // contano, perché stanno per essere revocate: un link nuovo chiude tutti i precedenti
+  // della stessa stagione. Prima si chiudeva solo quello scritto sulla stagione, e chi
+  // correggeva una stagione dopo averla mandata lasciava il link vecchio aperto: contava
+  // nel limite per 30 giorni, e bastavano poche correzioni per restare bloccati.
   const aperte = await db
     .collection('richieste')
     .where('workerUid', '==', workerUid)
     .where('stato', '==', 'aperta')
     .get();
-  const altreAperte = aperte.docs.filter((d) => d.id !== stagione.richiestaId).length;
+  const diQuestaStagione = aperte.docs.filter((d) => d.data().stagioneId === stagioneId);
+  const altreAperte = aperte.size - diQuestaStagione.length;
   if (altreAperte >= MAX_RICHIESTE_APERTE) {
     throw new HttpsError(
       'resource-exhausted',
@@ -112,13 +116,13 @@ export const creaRichiesta = onCall(async (richiesta) => {
   const token = generaToken();
   const lotto = db.batch();
 
-  // Rimandare una richiesta uccide quella di prima: il link vecchio non deve più
+  // Rimandare una richiesta uccide quelle di prima: il link vecchio non deve più
   // funzionare, altrimenti resterebbero in giro due link per la stessa stagione.
-  // Si controlla che esista ancora: dopo 90 giorni la pulizia l'ha cancellata (§9), e
-  // una `update` su un documento che non c'è più faceva fallire ogni tentativo di
-  // rimandare, per sempre.
-  if (stagione.richiestaId && (await db.doc(`richieste/${stagione.richiestaId}`).get()).exists) {
-    lotto.update(db.doc(`richieste/${stagione.richiestaId}`), { stato: 'revocata' });
+  // Si revocano solo link di questo lavoratore e di questa stagione, trovati dal
+  // server: non quello scritto sulla stagione, che un tempo il client poteva scegliere
+  // (chi conosceva il link di un altro poteva farlo revocare da qui).
+  for (const vecchia of diQuestaStagione) {
+    lotto.update(vecchia.ref, { stato: 'revocata' });
   }
 
   lotto.set(db.doc(`richieste/${token}`), {
@@ -194,7 +198,16 @@ export const leggiRichiesta = onCall(async (richiesta) => {
   const stato = dati.stato === 'aperta' && scaduta ? 'scaduta' : dati.stato;
 
   // Su un link non più valido non si dice niente di nessuno: solo perché non va.
-  if (stato !== 'aperta') return { stato, numeroCoincide };
+  // A chi l'ha usato si dice solo se c'è una conferma da poter revocare: un link è
+  // «usato» anche dopo un «non corrisponde», e lì il bottone Revoca non aveva niente da
+  // togliere.
+  if (stato !== 'aperta') {
+    const revocabile =
+      stato === 'usata' &&
+      numeroCoincide &&
+      !(await db.collection('conferme').where('richiestaId', '==', token).limit(1).get()).empty;
+    return { stato, numeroCoincide, revocabile };
+  }
 
   // Senza la foto di cosa è stato chiesto non si può mostrare niente con onestà.
   if (!dati.stagioneAlMomento) return { stato: 'revocata' as const, numeroCoincide };

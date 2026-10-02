@@ -425,10 +425,67 @@ await titolo('La stagione corretta dopo aver mandato il link');
     'confermare col link di prima dopo un rinvio',
     chiama('confermaStagione', { token: tokenVecchio, ...CONFERMA_VALIDA }, responsabile),
   );
+  const vecchia = await leggi(`richieste/${tokenVecchio}`);
+  if (vecchia?.fields?.stato?.stringValue === 'revocata') {
+    ok('rimandando, il link della stagione corretta si chiude davvero');
+  } else {
+    no('rimandando, il link della stagione corretta si chiude davvero', `stato: ${vecchia?.fields?.stato?.stringValue}`);
+  }
   await deveRiuscire(
     'confermare col link nuovo',
     chiama('confermaStagione', { token: secondo.risultato.token, ...CONFERMA_VALIDA }, responsabile),
   );
+}
+
+await titolo('Correggere e rimandare non consuma il limite di cinque');
+{
+  // Prima un link di una stagione corretta restava aperto e contava nel limite per
+  // 30 giorni: dopo poche correzioni non si poteva più chiedere niente.
+  await azzera();
+  const mario = await preparaLavoratore('347 410 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'sua');
+  let ultimo = null;
+  for (let i = 0; i < 7; i += 1) {
+    ultimo = await chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393484100002' },
+      mario,
+    );
+    await scriviCampi(`workers/${mario.uid}/stagioni/sua`, {
+      strutturaNome: { stringValue: `Correzione ${i}` },
+      stato: { stringValue: 'bozza' },
+      richiestaId: { nullValue: null },
+    });
+  }
+  if (ultimo?.ok) ok('sette invii con correzioni in mezzo, nessun blocco');
+  else no('sette invii con correzioni in mezzo, nessun blocco', ultimo?.errore?.message);
+}
+
+await titolo('Il link di un altro scritto sulla propria stagione');
+{
+  // Le regole ora lo impediscono dal client, ma il server non deve fidarsi: chi conosce
+  // il link di un altro (gli è arrivato da responsabile) lo mette su una sua stagione e
+  // chiede una conferma, sperando che creaRichiesta lo revochi.
+  await azzera();
+  const anna = await preparaLavoratore('347 420 0001', 'Anna', 'inv-1');
+  await creaStagione(anna.uid, 'sua');
+  const diAnna = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393484200009' },
+    anna,
+  );
+
+  const furbo = await preparaLavoratore('347 420 0002', 'Furbo', 'inv-2');
+  await creaStagione(furbo.uid, 'sua', { richiestaId: { stringValue: diAnna.risultato.token } });
+  await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Pino', telefonoResponsabile: '+393484200008' },
+    furbo,
+  );
+
+  const richiesta = await leggi(`richieste/${diAnna.risultato.token}`);
+  if (richiesta?.fields?.stato?.stringValue === 'aperta') ok('il link di un altro resta aperto');
+  else no('il link di un altro resta aperto', `stato: ${richiesta?.fields?.stato?.stringValue}`);
 }
 
 // ---- La stagione cambiata restando «in attesa» --------------------------
@@ -574,6 +631,14 @@ await titolo('«Non ha mai lavorato qui», due volte');
   await azzera();
   const mario = await preparaLavoratore('347 700 0001', 'Mario', 'inv-1');
 
+  // Un link partito prima della sospensione: dopo, non deve più poter confermare.
+  await creaStagione(mario.uid, 'prima', { strutturaId: { stringValue: 'struttura-8' } });
+  const linkPrima = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'prima', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393487000088' },
+    mario,
+  );
+
   for (let i = 0; i < 2; i += 1) {
     await creaStagione(mario.uid, `stagione-${i}`, {
       strutturaId: { stringValue: `struttura-${i}` },
@@ -616,6 +681,29 @@ await titolo('«Non ha mai lavorato qui», due volte');
       mario,
     ),
   );
+
+  const responsabilePrima = await entra('348 700 0088');
+  await deveFallire(
+    'confermare un link partito prima della sospensione',
+    chiama('confermaStagione', { token: linkPrima.risultato.token, ...CONFERMA_VALIDA }, responsabilePrima),
+  );
+
+  // Chi ha segnalato non vede un bottone Revoca che non ha niente da togliere.
+  const responsabile0 = await entra('348 700 0000');
+  const segnalata = await leggi('segnalazioni');
+  const tokenSegnalato = segnalata?.documents?.[0]?.fields?.richiestaId?.stringValue;
+  const vista = await chiama('leggiRichiesta', { token: tokenSegnalato }, responsabile0);
+  if (vista.risultato?.stato === 'usata' && vista.risultato?.revocabile === false) {
+    ok('dopo un «non corrisponde» non si offre la revoca');
+  } else {
+    no('dopo un «non corrisponde» non si offre la revoca', JSON.stringify(vista.risultato));
+  }
+
+  // Eliminando l'account, le segnalazioni su di lui se ne vanno con il resto.
+  await chiama('eliminaAccount', { conferma: 'ELIMINA' }, mario);
+  const rimaste = await leggi('segnalazioni');
+  if ((rimaste?.documents ?? []).length === 0) ok('eliminando l’account spariscono anche le segnalazioni');
+  else no('eliminando l’account spariscono anche le segnalazioni', `${rimaste.documents.length} rimaste`);
 }
 
 // ---- Revoca -------------------------------------------------------------
@@ -633,6 +721,10 @@ await titolo('La revoca del responsabile');
   const token = esito.risultato.token;
   const responsabile = await entra('348 800 0002');
   await chiama('confermaStagione', { token, ...CONFERMA_VALIDA }, responsabile);
+
+  const vista = await chiama('leggiRichiesta', { token }, responsabile);
+  if (vista.risultato?.revocabile === true) ok('chi ha confermato vede che può revocare');
+  else no('chi ha confermato vede che può revocare', JSON.stringify(vista.risultato));
 
   const estraneo = await entra('349 999 0002');
   await deveFallire(

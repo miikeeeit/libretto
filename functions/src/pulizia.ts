@@ -24,9 +24,39 @@ export type EsitoPulizia = {
   sbloccate: number;
 };
 
+/**
+ * Le tre passate girano ognuna per conto suo. Prima erano in fila, e un errore nella
+ * prima (successe online: mancava un indice, che l'emulatore non chiede) fermava anche
+ * la seconda — cioè la cancellazione dopo 90 giorni che l'informativa promette. Ora se
+ * una si rompe le altre vanno avanti, e l'errore si rilancia alla fine, così nei log
+ * la pulizia risulta fallita e non passa inosservata.
+ */
 export async function eseguiPulizia(): Promise<EsitoPulizia> {
   const adesso = Timestamp.now();
+  const errori: string[] = [];
 
+  async function passata<T>(nome: string, lavoro: () => Promise<T>, seFallisce: T): Promise<T> {
+    try {
+      return await lavoro();
+    } catch (errore) {
+      console.error(`Pulizia, passata «${nome}» fallita:`, errore);
+      errori.push(nome);
+      return seFallisce;
+    }
+  }
+
+  const scadute = await passata('link scaduti', () => chiudiLinkScaduti(adesso), 0);
+  const cancellate = await passata('richieste vecchie', () => cancellaRichiesteVecchie(adesso), 0);
+  const sbloccate = await passata('stagioni appese', () => sbloccaStagioniAppese(), 0);
+
+  console.log(
+    `Pulizia: ${scadute} richieste scadute, ${cancellate} cancellate, ${sbloccate} stagioni sbloccate.`,
+  );
+  if (errori.length > 0) throw new Error(`Pulizia incompleta: ${errori.join(', ')}.`);
+  return { scadute, cancellate, sbloccate };
+}
+
+async function chiudiLinkScaduti(adesso: Timestamp): Promise<number> {
   // ---- 1 · I link non usati entro 30 giorni ------------------------------
   // La richiesta si chiude e la stagione torna visibile al lavoratore come «scaduta»,
   // con il pulsante per rimandarla (L3).
@@ -58,7 +88,10 @@ export async function eseguiPulizia(): Promise<EsitoPulizia> {
     await lotto.commit();
     scadute += 1;
   }
+  return scadute;
+}
 
+async function cancellaRichiesteVecchie(adesso: Timestamp): Promise<number> {
   // ---- 2 · Quello che non serve più tenere -------------------------------
   const limite = Timestamp.fromMillis(adesso.toMillis() - GIORNI_CONSERVAZIONE * 24 * 60 * 60 * 1000);
   const vecchie = await db
@@ -77,7 +110,10 @@ export async function eseguiPulizia(): Promise<EsitoPulizia> {
     cancellate += 1;
   }
   if (cancellate > 0) await lotto.commit();
+  return cancellate;
+}
 
+async function sbloccaStagioniAppese(): Promise<number> {
   // ---- 3 · Le stagioni rimaste appese ------------------------------------
   // Rete di sicurezza: una stagione «in attesa» il cui link non è più aperto non
   // aspetta più niente, e finché resta così il lavoratore non vede il pulsante per
@@ -103,11 +139,7 @@ export async function eseguiPulizia(): Promise<EsitoPulizia> {
     await stagione.ref.update({ stato: 'scaduta', updatedAt: FieldValue.serverTimestamp() });
     sbloccate += 1;
   }
-
-  console.log(
-    `Pulizia: ${scadute} richieste scadute, ${cancellate} cancellate, ${sbloccate} stagioni sbloccate.`,
-  );
-  return { scadute, cancellate, sbloccate };
+  return sbloccate;
 }
 
 // Ogni notte alle tre, ora italiana: nessuno sta usando l'app, e se qualcosa va storto

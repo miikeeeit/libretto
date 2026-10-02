@@ -22,7 +22,12 @@ export const creaRichiesta = httpsCallable<
 
 /** Quello che vede chi apre il link, senza essere collegato (C1). */
 export type DatiRichiesta =
-  | { stato: 'inesistente' | 'usata' | 'scaduta' | 'revocata'; numeroCoincide: boolean }
+  | {
+      stato: 'inesistente' | 'usata' | 'scaduta' | 'revocata';
+      numeroCoincide: boolean;
+      /** Vero solo per chi ha confermato da quel link: c'è una conferma da poter revocare. */
+      revocabile?: boolean;
+    }
   | {
       stato: 'aperta';
       /** Vero solo se chi chiama ha già verificato il numero giusto. Il numero non arriva mai. */

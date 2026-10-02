@@ -119,6 +119,16 @@ export const confermaStagione = onCall(async (chiamata) => {
 
   const { ref: richiestaRef, richiesta } = await richiestaPerChiamante(token, telefono, 'aperta');
 
+  // §8.5: un libretto sospeso non riceve conferme finché Mike non lo guarda. La
+  // sospensione fermava le richieste nuove, ma i link già partiti si potevano ancora
+  // confermare, e quelle conferme sarebbero comparse tutte insieme alla riapertura.
+  if ((await db.doc(`sospensioni/${richiesta.workerUid}`).get()).exists) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Questo libretto è in revisione: per ora non si possono aggiungere conferme.',
+    );
+  }
+
   if (richiesta.scadeIl.toMillis() < Date.now()) {
     await chiudiPerScadenza(richiestaRef, richiesta, token);
     throw new HttpsError('failed-precondition', 'Questo link è scaduto.');

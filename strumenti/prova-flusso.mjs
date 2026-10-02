@@ -123,6 +123,14 @@ function pdfFinto() {
   );
 }
 
+/** Un PNG di un pixel, per provare il caricamento della foto. */
+function pngFinto() {
+  return Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    'base64',
+  );
+}
+
 let passi = 0;
 function fatto(testo) {
   passi += 1;
@@ -154,6 +162,29 @@ try {
   await page.getByRole('heading', { name: /Crea il tuo libretto/i }).waitFor({ timeout: 20000 });
   fatto('telefono verificato, si passa alla creazione del profilo');
 
+  // Il telefono chiude l'app fra l'SMS e il profilo (succede scegliendo la foto). Il
+  // codice di invito messo da parte deve esserci ancora; e se manca, la pagina lo
+  // chiede invece di lasciare un modulo che le regole rifiuterebbero.
+  await page.reload({ waitUntil: 'load' });
+  await page.getByRole('heading', { name: /Crea il tuo libretto/i }).waitFor({ timeout: 20000 });
+  if ((await page.getByLabel('Codice di invito').count()) !== 0) {
+    throw new Error('Riaprendo l’app il codice di invito è andato perso.');
+  }
+  await page.evaluate(() => localStorage.removeItem('libretto.invito'));
+  await page.reload({ waitUntil: 'load' });
+  await page.getByRole('heading', { name: /Crea il tuo libretto/i }).waitFor({ timeout: 20000 });
+
+  // La foto: un SVG può contenere codice, quindi si accettano solo formati da foto.
+  await page.locator('#foto').setInputFiles({
+    name: 'foto.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+  });
+  const avvisoFoto = await page.locator('.errore').innerText({ timeout: 20000 });
+  if (!avvisoFoto.includes('JPG')) throw new Error(`Avviso inatteso sulla foto: "${avvisoFoto}"`);
+  await page.locator('#foto').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: pngFinto() });
+  fatto('la foto vuole un formato da foto: SVG rifiutato, PNG accettato');
+
   await page.getByLabel('Nome', { exact: true }).fill('Mario');
   await page.getByLabel('Cognome').fill('Rossi');
   await page.getByLabel('Il ruolo che fai più spesso').selectOption('sala');
@@ -161,6 +192,12 @@ try {
   await page.getByRole('button', { name: 'Terracina' }).click();
   await schermata(page, '2-profilo');
   await page.getByRole('button', { name: /Crea il mio libretto/i }).click();
+
+  // Il codice era stato tolto: la pagina lo chiede invece di bloccarsi.
+  await page.getByLabel('Codice di invito').waitFor({ timeout: 20000 });
+  await page.getByLabel('Codice di invito').fill(INVITO);
+  await page.getByRole('button', { name: /Crea il mio libretto/i }).click();
+  fatto('il codice di invito resta anche chiudendo l’app, e se manca si richiede');
 
   // ---- L3: il mio libretto -------------------------------------------------
   await page.getByRole('heading', { name: 'Mario Rossi' }).waitFor({ timeout: 20000 });

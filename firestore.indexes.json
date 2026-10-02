@@ -5,8 +5,14 @@
       "collectionGroup": "conferme",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "responsabileUid", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "responsabileUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
@@ -14,8 +20,14 @@
       "collectionGroup": "conferme",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "responsabileUid", "order": "ASCENDING" },
-        { "fieldPath": "strutturaId", "order": "ASCENDING" }
+        {
+          "fieldPath": "responsabileUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "strutturaId",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
@@ -23,8 +35,14 @@
       "collectionGroup": "richieste",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "workerUid", "order": "ASCENDING" },
-        { "fieldPath": "stato", "order": "ASCENDING" }
+        {
+          "fieldPath": "workerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "stato",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
@@ -32,10 +50,54 @@
       "collectionGroup": "segnalazioni",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "workerUid", "order": "ASCENDING" },
-        { "fieldPath": "tipo", "order": "ASCENDING" }
+        {
+          "fieldPath": "workerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tipo",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Pulizia notturna (§10): i link ancora aperti con la scadenza passata. Senza, la pulizia si ferma al primo passo e non cancella più niente.",
+      "collectionGroup": "richieste",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "stato",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "scadeIl",
+          "order": "ASCENDING"
+        }
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "stagioni",
+      "fieldPath": "stato",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    }
+  ]
 }
