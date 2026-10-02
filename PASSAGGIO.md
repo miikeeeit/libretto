@@ -40,6 +40,11 @@ Milano. Il deploy lo lancia Mike dal suo Mac. Il 30 settembre Mike ha fatto il p
 dal suo telefono (accesso con invito, profilo, stagione, conferma e revoca) e ha mandato la
 prima richiesta vera al suo datore di lavoro. In `responsabiliNoti` c'è un solo numero.
 
+Il 2 ottobre una scansione completa del codice ha trovato e corretto undici problemi (il
+commit `1435692` li elenca), fra cui la pulizia notturna che online non poteva girare per due
+indici mancanti. Il deploy è fatto e Mike ha verificato: indici attivi, pulizia forzata senza
+errori nei log, `profiliPubblici` non più elencabile.
+
 Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
 Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
 regione una notte storta si misura in centinaia di euro. Se si apre un progetto nuovo, si
