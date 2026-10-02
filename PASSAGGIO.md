@@ -43,7 +43,10 @@ prima richiesta vera al suo datore di lavoro. In `responsabiliNoti` c'è un solo
 Il 2 ottobre una scansione completa del codice ha trovato e corretto undici problemi (il
 commit `1435692` li elenca), fra cui la pulizia notturna che online non poteva girare per due
 indici mancanti. Il deploy è fatto e Mike ha verificato: indici attivi, pulizia forzata senza
-errori nei log, `profiliPubblici` non più elencabile.
+errori nei log, `profiliPubblici` non più elencabile. Lo stesso giorno sono andati online anche gli ultimi ritocchi
+(commit `124e2d3`: link morti, responsabile noto, intestazioni del sito); Mike ha verificato
+le intestazioni e l'accesso dal telefono. Da qui il codice è pronto per la beta (§11, settimana
+6): restano solo i passi di Mike in `BETA.md`.
 
 Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
 Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
