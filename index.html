@@ -8,7 +8,18 @@
     <meta name="robots" content="noindex" />
     <link rel="icon" href="/icona.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>Libretto</title>
+    <title>%NOME_APP%</title>
+    <!-- L'anteprima che WhatsApp mostra sotto un link. È la stessa per ogni pagina,
+         anche per i link di conferma e le pagine pubbliche: per questo dice solo cos'è
+         Libretto e non contiene niente di nessuno. -->
+    <meta name="description" content="%CLAIM%" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="it_IT" />
+    <meta property="og:title" content="%NOME_APP%" />
+    <meta property="og:description" content="%CLAIM%" />
+    <meta property="og:image" content="https://%VITE_FIREBASE_PROJECT_ID%.web.app/icona-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
   </head>
   <body>
     <div id="root"></div>

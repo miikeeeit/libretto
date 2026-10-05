@@ -602,6 +602,12 @@ try {
   if (!avviso2.includes('non esiste')) throw new Error(`Avviso inatteso: "${avviso2}"`);
   fatto(`un codice inventato si ferma prima dell'SMS: "${avviso2}"`);
 
+  // ---- Il link personale porta già il codice -------------------------------
+  await page.goto(`${BASE}/?invito=giulia-2026`, { waitUntil: 'load' });
+  const precompilato = await page.getByLabel('Codice di invito').inputValue({ timeout: 20000 });
+  if (precompilato !== 'giulia-2026') throw new Error(`Codice dal link: "${precompilato}"`);
+  fatto('il link personale scrive già il codice di invito');
+
   if (problemi.length > 0) throw new Error(`Problemi nel browser:\n  ${problemi.join('\n  ')}`);
   console.log('\nTutto a posto.');
 } catch (errore) {

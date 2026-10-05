@@ -147,7 +147,7 @@ macchina. Usare le equivalenti disponibili e dirlo, invece di annunciare skill n
 npm run lint            # i tipi, anche quelli delle funzioni
 npm test                # 66 prove sulle regole di sicurezza
 npm run prova:rottura   # 57 casi, chiamando le funzioni a mano
-npm run prova:flusso    # 27 passaggi in browser, tre finestre
+npm run prova:flusso    # 28 passaggi in browser, tre finestre
 ```
 
 Guardano tre cose **diverse**, e conviene sapere quale:

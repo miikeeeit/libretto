@@ -17,6 +17,13 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      // Nome e frase di Libretto nell'intestazione della pagina, presi da src/config.ts:
+      // cambiando il nome lì, cambiano anche il titolo e l'anteprima dei link.
+      {
+        name: 'testi-libretto',
+        transformIndexHtml: (html: string) =>
+          html.replaceAll('%NOME_APP%', NOME_APP).replaceAll('%CLAIM%', CLAIM),
+      },
       VitePWA({
         registerType: 'autoUpdate',
         manifest: {

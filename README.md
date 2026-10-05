@@ -97,6 +97,9 @@ documento con l'**id uguale al codice** (minuscolo, senza spazi):
 
 Per ritirare un invito non ancora usato basta mettere `attivo` a `false`.
 
+**Il link personale.** `https://libretto-3e962.web.app/?invito=mario-2026` apre l'accesso con il
+codice già scritto: è il link da mandare a ogni collega.
+
 **Sugli emulatori**: `node strumenti/inviti-emulatore.mjs <codice> [<altro>…]`.
 
 Quando la registrazione si aprirà a tutti (fine novembre, dopo PC5) si cambiano due cose:
@@ -141,7 +144,7 @@ il job della pulizia → «Forza esecuzione».
 npm run lint            # i tipi, anche quelli delle funzioni
 npm test                # le regole di sicurezza: 66 prove, sull'emulatore
 npm run prova:rottura   # i 57 casi di rottura, chiamando le funzioni a mano
-npm run prova:flusso    # i 27 passaggi del flusso vero in un browser
+npm run prova:flusso    # i 28 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito
 ```
 

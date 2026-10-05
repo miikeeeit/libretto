@@ -6,7 +6,7 @@
 // PRIMA di mandare l'SMS, perché ogni SMS costa.
 
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useVerificaTelefono } from '../auth/useVerificaTelefono';
 import { BETA_SU_INVITO, CLAIM, NOME_APP } from '../config';
 import { messaggioErrore } from '../lib/errori';
@@ -39,7 +39,10 @@ function erroreInSospeso(): string | null {
 
 export default function Accesso() {
   const [passo, setPasso] = useState<'numero' | 'codice'>('numero');
-  const [invito, setInvito] = useState('');
+  // Il link personale che Mike manda a ogni collega porta già il codice
+  // (`/?invito=mario-2026`): lo si trova scritto, senza doverlo copiare.
+  const [parametri] = useSearchParams();
+  const [invito, setInvito] = useState(() => parametri.get('invito') ?? '');
   const [telefono, setTelefono] = useState('');
   const [maggiorenne, setMaggiorenne] = useState(false);
   const [informativa, setInformativa] = useState(false);
