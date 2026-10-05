@@ -48,6 +48,12 @@ errori nei log, `profiliPubblici` non più elencabile. Lo stesso giorno sono and
 le intestazioni e l'accesso dal telefono. Da qui il codice è pronto per la beta (§11, settimana
 6): restano solo i passi di Mike in `BETA.md`.
 
+**La beta è partita il 5 ottobre.** Mike ha mandato il link personale (`/?invito=<codice>`) a
+quattro colleghi, un codice a testa, dal suo WhatsApp e senza promemoria. Da qui il lavoro è
+guardare: chi entra (`usatoDa` sugli `inviti`), dove si blocca (quello che i colleghi
+raccontano a Mike), quanti responsabili confermano entro 7 giorni (`statistiche/conferme`).
+Prima di correggere qualcosa, si ascolta dove si sono fermati.
+
 Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
 Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
 regione una notte storta si misura in centinaia di euro. Se si apre un progetto nuovo, si
