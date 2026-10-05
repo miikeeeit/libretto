@@ -6,7 +6,7 @@ Una riga per idea, con il motivo per cui è rimandata.
 
 ## Già previste dalla specifica (§2)
 
-- **Ricerca per i datori** — si accende a gennaio, quando ci sono ~50 profili confermati in zona. Il modello dati la supporta già (`profiliPubblici`, `geohash`, `disponibile`). Una bozza più larga, con annunci, contatto su richiesta e datori verificati, è in [`FASE2_BOZZA.md`](FASE2_BOZZA.md) (1° ottobre): è il punto di partenza per la specifica di gennaio, non una specifica.
+- **Ricerca per i datori** — si accende a gennaio, quando ci sono ~50 profili confermati in zona. Il modello dati la supporta già (`profiliPubblici`, `geohash`, `disponibile`). Il dopo-V1 è descritto in [`SPEC_POST_V1.md`](SPEC_POST_V1.md) (5 ottobre): prova documentale, stato delle aziende, disponibilità, ricerca, annunci. Parte solo quando ne sono soddisfatte le condizioni di avvio.
 - **Notifiche push o email** — nella v1 il canale è WhatsApp, e basta.
 - **Account per i datori** — la verifica via SMS ne fa le veci; un account in più sarebbe una barriera in più.
 - **Chat interna, candidature, recensioni testuali, stelle** — non servono né a rendere vere le conferme né a dare al lavoratore il controllo dei suoi dati (§1).

@@ -1,5 +1,8 @@
 # Fase 2 · Incontro tra datori e lavoratori — BOZZA
 
+> **Superata il 5 ottobre 2026** da [`SPEC_POST_V1.md`](SPEC_POST_V1.md), che la riprende e la
+> allarga. Resta qui per le note del 1° ottobre.
+
 > **Non è una specifica.** È un'idea scritta da un altro agente il 1° ottobre 2026, dopo una
 > domanda di un lavoratore sul rapporto fra lavoratore e datore. Mike l'ha portata qui per non
 > perderla. La specifica vera della ricerca si scrive a gennaio (`SPEC.md` §11). Fino ad allora
