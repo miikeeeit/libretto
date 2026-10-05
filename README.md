@@ -123,12 +123,24 @@ node strumenti/responsabili-noti-emulatore.mjs "347 123 4567=Bar Somma"
 
 Da caricare prima della beta (PC4): **Bar Somma** e **il tuo datore di lavoro**.
 
+## 5b. Quanti datori confermano entro 7 giorni
+
+Ogni notte, prima di cancellare qualcosa, la pulizia conta quante richieste partite da almeno
+7 giorni sono state confermate entro 7 giorni. È la condizione 2 di
+[`SPEC_POST_V1.md`](SPEC_POST_V1.md): sotto il 50% la prova documentale diventa urgente.
+
+Si legge dalla console Firebase → Firestore → `statistiche` → `conferme`:
+`percentualeEntro7Giorni`, e accanto i conti da cui viene (confermate dopo, segnalate, scadute,
+ancora aperte). Le richieste sostituite da un invio nuovo non si contano. Solo numeri, nessun
+nome; dall'app non si legge. Per averlo subito, senza aspettare la notte: Cloud Scheduler →
+il job della pulizia → «Forza esecuzione».
+
 ## 6. Provare che non si rompe
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # le regole di sicurezza: 65 prove, sull'emulatore
-npm run prova:rottura   # i 56 casi di rottura, chiamando le funzioni a mano
+npm test                # le regole di sicurezza: 66 prove, sull'emulatore
+npm run prova:rottura   # i 57 casi di rottura, chiamando le funzioni a mano
 npm run prova:flusso    # i 27 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito
 ```

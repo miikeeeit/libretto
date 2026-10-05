@@ -11,6 +11,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { Timestamp } from 'firebase-admin/firestore';
 import { db } from './comune';
+import { aggiornaStatisticheConferme } from './statistiche';
 
 /** §9: le richieste chiuse si cancellano dopo 90 giorni. */
 const GIORNI_CONSERVAZIONE = 90;
@@ -25,7 +26,7 @@ export type EsitoPulizia = {
 };
 
 /**
- * Le tre passate girano ognuna per conto suo. Prima erano in fila, e un errore nella
+ * Le passate girano ognuna per conto suo. Prima erano in fila, e un errore nella
  * prima (successe online: mancava un indice, che l'emulatore non chiede) fermava anche
  * la seconda — cioè la cancellazione dopo 90 giorni che l'informativa promette. Ora se
  * una si rompe le altre vanno avanti, e l'errore si rilancia alla fine, così nei log
@@ -45,6 +46,9 @@ export async function eseguiPulizia(): Promise<EsitoPulizia> {
     }
   }
 
+  // Prima i conti, poi le cancellazioni: la misura deve vedere le richieste che la
+  // pulizia sta per togliere.
+  await passata('statistiche', () => aggiornaStatisticheConferme(adesso), null);
   const scadute = await passata('link scaduti', () => chiudiLinkScaduti(adesso), 0);
   const cancellate = await passata('richieste vecchie', () => cancellaRichiesteVecchie(adesso), 0);
   const sbloccate = await passata('stagioni appese', () => sbloccaStagioniAppese(), 0);

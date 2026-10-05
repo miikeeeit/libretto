@@ -184,7 +184,7 @@ Con 20–50 annunci per zona i filtri bastano. Da rivalutare solo con centinaia 
 Scritte da Claude confrontando questa specifica con `SPEC.md`, `DECISIONI.md` e il codice.
 Sono domande per Mike, non decisioni: finché lui non sceglie, vale quello che è già deciso.
 
-**1. Il nome di chi conferma (punto 2, «Confermata da Giulia R.»).** Contraddice PC2 del 21
+**1. Il nome di chi conferma (punto 2, «Confermata da Giulia R.»).** *Deciso il 5 ottobre: mai il nome, si mostrano ruolo e data (vedi `DECISIONI.md`).* Contraddice PC2 del 21
 settembre: il nome del responsabile non compare mai in pubblico. Non è solo una regola
 nostra: ogni responsabile ha confermato spuntando «La mia conferma, senza il mio nome, sarà
 visibile», e la pagina gli dice «il tuo nome non compare da nessuna parte». Le conferme già
@@ -193,14 +193,14 @@ nuova e un consenso nuovo. Il problema del cambio di gestione si risolve anche s
 «Confermata dal responsabile di sala, settembre 2026» lega già la conferma alla persona e
 alla data.
 
-**2. L'elenco ex collaboratori (punto 4).** Così com'è scritto, un datore vede chi ha lavorato
+**2. L'elenco ex collaboratori (punto 4).** *Deciso il 5 ottobre: solo chi ha «Fatti trovare» acceso e non ha escluso quel datore (vedi `DECISIONI.md`).* Così com'è scritto, un datore vede chi ha lavorato
 da lui e se è disponibile, salvo che il lavoratore lo nasconda. È un consenso al contrario
 (vale finché non dici di no), e il principio in cima a questo documento chiede il contrario.
 Coerente con la decisione del 2 ottobre sarebbe: si compare nell'elenco solo con «Fatti
 trovare» acceso, e solo per i datori che il lavoratore non ha escluso. Con questa regola la
 seconda domanda aperta del punto 4 («mostra anche chi non è disponibile?») ha già risposta: no.
 
-**3. «Attiva lo stato disponibile» (punto 3).** Il 2 ottobre si è deciso di tenere due
+**3. «Attiva lo stato disponibile» (punto 3).** *Confermato il 5 ottobre: due interruttori (vedi `DECISIONI.md`).* Il 2 ottobre si è deciso di tenere due
 interruttori separati: «Disponibile per la stagione» resta il badge di oggi, e per farsi
 trovare serve «Fatti trovare dai datori», spento per tutti e con consenso nuovo. La specifica
 li riunisce in uno: vale la decisione del 2 ottobre, a meno che Mike non la cambi.
@@ -226,6 +226,8 @@ d'invio) e `conferme` (data della conferma, con lo stesso `richiestaId`), ma sol
 pulizia non cancella le richieste chiuse dopo 90 giorni. Va misurato entro quel tempo.
 Attenzione: è un numero diverso da quello della §12 della V1 (60% delle richieste *aperte* dal
 responsabile arriva a conferma).
+*Fatto il 5 ottobre: la pulizia notturna lo calcola e lo scrive in `statistiche/conferme`
+(vedi `README.md`, «Quanti datori confermano entro 7 giorni»).*
 
 **8. Il calendario.** La regola della V1 dice: nessuna funzione fuori specifica prima di
 dicembre. Questa specifica può far partire la prova documentale «subito dopo il lancio». Le due

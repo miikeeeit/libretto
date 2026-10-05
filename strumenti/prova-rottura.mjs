@@ -639,6 +639,55 @@ await titolo('Il «responsabile noto» guadagnato e perso');
   else no('una revoca sotto la soglia toglie il titolo', JSON.stringify(dopo?.fields?.verificatoAdmin));
 }
 
+await titolo('Quanti confermano entro 7 giorni (condizione 2 del dopo-V1)');
+{
+  // Quattro richieste partite dieci giorni fa: una confermata subito, una segnalata,
+  // una ancora aperta, una sostituita da un invio nuovo (che non deve contare). Più una
+  // partita ieri, che non ha ancora avuto la sua settimana e non deve contare.
+  await azzera();
+  const dieciGiorniFa = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+  const token = {};
+  for (const [i, nome] of ['confermata', 'segnalata', 'aperta', 'sostituita', 'recente'].entries()) {
+    const lavoratore = await preparaLavoratore(`347 520 000${i}`, `Stat${i}`, `inv-${i}`);
+    await creaStagione(lavoratore.uid, 'sua');
+    const esito = await chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: `+39348520009${i}` },
+      lavoratore,
+    );
+    token[nome] = { valore: esito.risultato.token, lavoratore };
+  }
+  const responsabile = (i) => entra(`348 520 009${i}`);
+  await chiama('confermaStagione', { token: token.confermata.valore, ...CONFERMA_VALIDA }, await responsabile(0));
+  await chiama('segnalaStagione', { token: token.segnalata.valore, motivo: 'dati_sbagliati' }, await responsabile(1));
+  await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393485200093' },
+    token.sostituita.lavoratore,
+  );
+  // Si sposta indietro la partenza delle prime quattro; la conferma resta di oggi, ma
+  // a quella si dà la stessa data, così risulta arrivata subito.
+  for (const nome of ['confermata', 'segnalata', 'aperta', 'sostituita']) {
+    await scriviCampi(`richieste/${token[nome].valore}`, { createdAt: { timestampValue: dieciGiorniFa } });
+  }
+  const conferme = await leggi('conferme');
+  await scriviCampi(conferme.documents[0].name.split('/documents/')[1], {
+    createdAt: { timestampValue: dieciGiorniFa },
+  });
+
+  await eseguiPulizia();
+  const statistiche = (await leggi('statistiche/conferme'))?.fields ?? {};
+  const numero = (campo) => Number(statistiche[campo]?.integerValue ?? -1);
+  const atteso =
+    numero('richiesteConsiderate') === 3 &&
+    numero('confermateEntro7Giorni') === 1 &&
+    numero('segnalate') === 1 &&
+    numero('ancoraAperte') === 1 &&
+    numero('percentualeEntro7Giorni') === 33;
+  if (atteso) ok('la misura conta 3 richieste, 1 confermata entro 7 giorni: 33%');
+  else no('la misura conta 3 richieste, 1 confermata entro 7 giorni: 33%', JSON.stringify(statistiche));
+}
+
 // ---- Il tetto di conferme per numero -----------------------------------
 await titolo('Il tetto di dieci conferme in ventiquattr’ore');
 {

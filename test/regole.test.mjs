@@ -562,6 +562,11 @@ describe('quello che solo le Cloud Functions possono toccare', () => {
     await assertFails(deleteDoc(doc(comeMario(), 'sospensioni', LAVORATORE)));
   });
 
+  it('le statistiche delle conferme non si leggono né si scrivono dal client', async () => {
+    await assertFails(getDoc(doc(comeMario(), 'statistiche', 'conferme')));
+    await assertFails(setDoc(doc(comeMario(), 'statistiche', 'conferme'), { percentualeEntro7Giorni: 100 }));
+  });
+
   it('le segnalazioni non si leggono né si cancellano dal client', async () => {
     await assertFails(getDoc(doc(comeMario(), 'segnalazioni', 'segn1')));
     await assertFails(deleteDoc(doc(comeMario(), 'segnalazioni', 'segn1')));
