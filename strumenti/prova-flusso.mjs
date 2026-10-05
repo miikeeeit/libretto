@@ -149,6 +149,13 @@ try {
   // ---- L1: accesso col telefono -------------------------------------------
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await schermata(page, '1-accesso');
+  // Chi legge l'informativa e torna indietro deve poter chiedere l'SMS: al primo giro
+  // vero il reCAPTCHA si rifiutava di ripartire nello stesso riquadro («reCAPTCHA has
+  // already been rendered in this element»).
+  await page.getByRole('link', { name: 'informativa' }).click();
+  await page.getByRole('heading', { name: 'Informativa privacy' }).waitFor({ timeout: 20000 });
+  await page.goBack();
+  await page.getByRole('heading', { name: 'Entra col tuo numero' }).waitFor({ timeout: 20000 });
   await accedi('347 123 4567');
   await page.getByRole('heading', { name: 'Scrivi il codice' }).waitFor({ timeout: 20000 });
   fatto('codice SMS chiesto al numero indicato');

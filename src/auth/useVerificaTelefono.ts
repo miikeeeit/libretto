@@ -13,13 +13,35 @@ import {
 import { useCallback, useEffect, useRef } from 'react';
 import { auth } from '../lib/firebase';
 
+/**
+ * Un riquadro nuovo per ogni reCAPTCHA, dentro `#recaptcha` di index.html.
+ *
+ * Il reCAPTCHA invisibile si disegna direttamente nel riquadro che gli si dà, e
+ * `clear()` di Firebase non lo toglie (lo fa solo per quello visibile). Ridando sempre
+ * `#recaptcha`, il secondo veniva rifiutato da Google: «reCAPTCHA has already been
+ * rendered in this element». Succedeva al primo giro vero, il 5 ottobre, a chi tornava
+ * all'accesso dopo aver aperto l'informativa, e dopo ogni tentativo andato storto.
+ * L'emulatore non se ne accorge: lì il reCAPTCHA è finto.
+ */
+function riquadroNuovo(): HTMLElement {
+  const casa = document.getElementById('recaptcha') ?? document.body;
+  const riquadro = document.createElement('div');
+  casa.replaceChildren(riquadro);
+  return riquadro;
+}
+
 export function useVerificaTelefono() {
   const conferma = useRef<ConfirmationResult | null>(null);
   const verificatore = useRef<RecaptchaVerifier | null>(null);
 
   const pulisci = useCallback(() => {
-    verificatore.current?.clear();
+    try {
+      verificatore.current?.clear();
+    } catch {
+      // Già distrutto: niente da pulire.
+    }
     verificatore.current = null;
+    document.getElementById('recaptcha')?.replaceChildren();
   }, []);
 
   useEffect(() => pulisci, [pulisci]);
@@ -29,7 +51,7 @@ export function useVerificaTelefono() {
     async (numeroE164: string) => {
       try {
         if (!verificatore.current) {
-          verificatore.current = new RecaptchaVerifier(auth, 'recaptcha', { size: 'invisible' });
+          verificatore.current = new RecaptchaVerifier(auth, riquadroNuovo(), { size: 'invisible' });
         }
         conferma.current = await signInWithPhoneNumber(auth, numeroE164, verificatore.current);
       } catch (errore) {

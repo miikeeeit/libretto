@@ -25,6 +25,10 @@ export function messaggioErrore(errore: unknown, fallback = 'Qualcosa non è and
   } else {
     console.error('Errore:', errore);
   }
+  // Il reCAPTCHA di Google sbaglia senza codice e in inglese: non si mostra così com'è.
+  if (errore instanceof Error && /recaptcha/i.test(errore.message)) {
+    return 'Il controllo antispam si è inceppato. Ricarica la pagina e riprova.';
+  }
   if (errore instanceof Error && errore.message !== '') return errore.message;
   return fallback;
 }
