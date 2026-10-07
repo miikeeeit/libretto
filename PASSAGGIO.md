@@ -110,6 +110,11 @@ poteva funzionare online: le mancavano due indici, e una passata rotta fermava a
 compresa la cancellazione dopo 90 giorni. Ogni query nuova con due condizioni su campi diversi
 (o un `where` più un intervallo) va controllata contro quel file.
 
+**Nelle regole, un campo che può mancare si legge con `get('campo', predefinito)`.** Leggere
+`resource.data.campo` quando il campo non c'è manda la regola in errore, cioè la fa rifiutare.
+Il 6 ottobre un codice di invito creato dalla console senza `usatoDa` ha chiuso fuori una collega
+con «codice già usato da un altro numero». Vale per tutto quello che Mike crea a mano dalla console.
+
 **Le funzioni vanno compilate prima degli emulatori.** `npm run emulatori` lo fa da sé;
 lanciare `firebase emulators:start` a mano serve una build vecchia, e le funzioni nuove
 semplicemente non esistono. Se una funzione appena scritta «non c'è», è questo.
