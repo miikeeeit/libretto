@@ -29,6 +29,8 @@ export function messaggioErrore(errore: unknown, fallback = 'Qualcosa non è and
   if (errore instanceof Error && /recaptcha/i.test(errore.message)) {
     return 'Il controllo antispam si è inceppato. Ricarica la pagina e riprova.';
   }
-  if (errore instanceof Error && errore.message !== '') return errore.message;
+  // I messaggi delle nostre funzioni sono già scritti per chi li legge; la libreria di
+  // Firebase però ci attacca in fondo lo stato HTTP («… con te. [400]»): si toglie.
+  if (errore instanceof Error && errore.message !== '') return errore.message.replace(/\s*\[\d{3}\]$/, '');
   return fallback;
 }
