@@ -143,7 +143,7 @@ il job della pulizia → «Forza esecuzione».
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
 npm test                # le regole di sicurezza: 67 prove, sull'emulatore
-npm run prova:rottura   # i 57 casi di rottura, chiamando le funzioni a mano
+npm run prova:rottura   # i 58 casi di rottura, chiamando le funzioni a mano
 npm run prova:flusso    # i 28 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito
 ```

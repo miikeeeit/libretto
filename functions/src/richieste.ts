@@ -32,6 +32,12 @@ async function colleghiNonSiConfermano(
   strutturaId: string,
   periodo: { dal: string; al: string },
 ): Promise<void> {
+  // Eccezione decisa da Mike il 2026-10-07: un numero nella lista dei responsabili che
+  // conosce (`responsabiliNoti`) può confermare anche se ha lavorato lì nello stesso
+  // periodo. Il capo sala è spesso uno stagionale anche lui, e la lista la controlla
+  // solo Mike, quindi due colleghi d'accordo non possono sfruttarla.
+  if ((await db.doc(`responsabiliNoti/${telefonoResponsabile}`).get()).exists) return;
+
   const conQuelNumero = await db.collection('workers').where('telefono', '==', telefonoResponsabile).get();
 
   for (const altro of conQuelNumero.docs) {

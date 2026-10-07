@@ -238,6 +238,19 @@ await titolo('Chi prova a confermarsi da solo');
     ),
   );
 
+  // Decisione del 7 ottobre: un collega che Mike conosce come responsabile (il suo
+  // numero è in `responsabiliNoti`) può confermare anche se ha lavorato lì nello stesso
+  // periodo. Succede: il capo sala è spesso uno stagionale anche lui.
+  await scriviDocumento('responsabiliNoti', collega.telefono, { nota: { stringValue: 'capo sala' } });
+  await deveRiuscire(
+    'il collega che è un responsabile noto può confermare',
+    chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Gino', telefonoResponsabile: collega.telefono },
+      mario,
+    ),
+  );
+
   await deveFallire(
     'una richiesta senza essere collegati',
     chiama('creaRichiesta', { stagioneId: 'sua', nomeResponsabile: 'X', telefonoResponsabile: '+393480000001' }),
