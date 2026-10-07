@@ -52,7 +52,21 @@ export async function collegaInvito(codice: string, uid: string): Promise<EsitoI
     });
     return { ok: true };
   } catch {
-    return { ok: false, motivo: 'Questo codice è già stato usato da un altro numero.' };
+    // Prima qualunque rifiuto diventava «già usato da un altro numero», anche quando il
+    // motivo era un altro (un codice creato senza `usatoDa`, la rete): si guarda il codice
+    // e si dice quello che è vero.
+    const snap = await getDoc(doc(db, 'inviti', normalizzaCodice(codice))).catch(() => null);
+    const usatoDa = snap?.exists() ? snap.data().usatoDa : undefined;
+    if (typeof usatoDa === 'string' && usatoDa !== uid) {
+      return { ok: false, motivo: 'Questo codice è già stato usato da un altro numero.' };
+    }
+    if (snap?.exists() && snap.data().attivo !== true) {
+      return { ok: false, motivo: 'Questo codice non è più valido.' };
+    }
+    return {
+      ok: false,
+      motivo: 'Non riesco a collegare il tuo codice. Riprova tra poco, e se non va scrivi a chi ti ha invitato.',
+    };
   }
 }
 

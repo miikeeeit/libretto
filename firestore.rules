@@ -28,9 +28,13 @@ service cloud.firestore {
       allow list: if false;
 
       // Un codice si intesta a un solo numero, e una volta sola.
+      // `get('usatoDa', null)`: un codice creato dalla console col solo `attivo` non ha
+      // proprio il campo, e leggerlo direttamente mandava la regola in errore — cioè la
+      // rifiutava. Al primo giro vero un collega si è sentito dire «codice già usato da
+      // un altro numero» con un codice nuovo (2026-10-06).
       allow update: if autenticato()
         && resource.data.attivo == true
-        && resource.data.usatoDa == null
+        && resource.data.get('usatoDa', null) == null
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usatoDa', 'usatoIl'])
         && request.resource.data.usatoDa == request.auth.uid;
 

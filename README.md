@@ -93,7 +93,7 @@ documento con l'**id uguale al codice** (minuscolo, senza spazi):
 | Campo | Tipo | Valore |
 |---|---|---|
 | `attivo` | boolean | `true` |
-| `usatoDa` | null | *(vuoto)* |
+| `usatoDa` | null | *(vuoto)* — se lo dimentichi va bene lo stesso |
 
 Per ritirare un invito non ancora usato basta mettere `attivo` a `false`.
 
@@ -142,7 +142,7 @@ il job della pulizia → «Forza esecuzione».
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # le regole di sicurezza: 66 prove, sull'emulatore
+npm test                # le regole di sicurezza: 67 prove, sull'emulatore
 npm run prova:rottura   # i 57 casi di rottura, chiamando le funzioni a mano
 npm run prova:flusso    # i 28 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito

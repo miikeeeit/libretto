@@ -108,6 +108,8 @@ async function preparaDati() {
     await setDoc(doc(db, 'inviti', 'libero-2026'), { attivo: true, usatoDa: null });
     await setDoc(doc(db, 'inviti', 'usato-2026'), { attivo: true, usatoDa: ALTRO });
     await setDoc(doc(db, 'inviti', 'spento-2026'), { attivo: false, usatoDa: null });
+    // Creato dalla console con il solo `attivo`, senza il campo `usatoDa`.
+    await setDoc(doc(db, 'inviti', 'senza-campo-2026'), { attivo: true });
     await setDoc(doc(db, 'slugs', SLUG), { uid: LAVORATORE });
     await setDoc(doc(db, 'slugs', 'preso-da-altri'), { uid: ALTRO });
   });
@@ -129,6 +131,15 @@ describe('inviti', () => {
   it('si intesta al proprio uid', async () => {
     await assertSucceeds(
       updateDoc(doc(comeMario(), 'inviti', 'libero-2026'), { usatoDa: LAVORATORE, usatoIl: new Date() }),
+    );
+  });
+
+  // Il 6 ottobre un collega si è sentito dire «codice già usato da un altro numero» con
+  // un codice nuovo: creato dalla console senza `usatoDa`, la regola cercava un campo che
+  // non c'era e rifiutava.
+  it('si intesta anche se dalla console manca il campo usatoDa', async () => {
+    await assertSucceeds(
+      updateDoc(doc(comeMario(), 'inviti', 'senza-campo-2026'), { usatoDa: LAVORATORE, usatoIl: new Date() }),
     );
   });
 
