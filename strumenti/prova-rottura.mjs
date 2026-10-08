@@ -241,7 +241,11 @@ await titolo('Chi prova a confermarsi da solo');
   // Decisione del 7 ottobre: un collega che Mike conosce come responsabile (il suo
   // numero è in `responsabiliNoti`) può confermare anche se ha lavorato lì nello stesso
   // periodo. Succede: il capo sala è spesso uno stagionale anche lui.
-  await scriviDocumento('responsabiliNoti', collega.telefono, { nota: { stringValue: 'capo sala' } });
+  // L'id scritto a mano come capita nella console («0039 347 100 0002»): deve valere lo
+  // stesso. L'8 ottobre un id «quasi giusto» ha tenuto bloccato un collega.
+  const t = collega.telefono;
+  const scrittoAMano = `0039 ${t.slice(3, 6)} ${t.slice(6, 9)} ${t.slice(9)}`;
+  await scriviDocumento('responsabiliNoti', scrittoAMano, { nota: { stringValue: 'capo sala' } });
   await deveRiuscire(
     'il collega che è un responsabile noto può confermare',
     chiama(

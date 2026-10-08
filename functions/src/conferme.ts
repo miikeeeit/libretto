@@ -14,6 +14,7 @@ import {
   fraGiorni,
   GIORNI_REVOCA,
   MAX_CONFERME_AL_GIORNO,
+  numeroNoto,
   RUOLI_RESPONSABILE,
   telefonoDiChiChiama,
   testoRichiesto,
@@ -277,8 +278,7 @@ async function aggiornaResponsabileNoto(
   telefono: string,
   strutturaId: string,
 ): Promise<void> {
-  const inLista = await db.doc(`responsabiliNoti/${telefono}`).get();
-  if (inLista.exists) {
+  if (await numeroNoto(telefono)) {
     await db
       .doc(`responsabili/${responsabileUid}`)
       .set({ verificatoAdmin: true, verificatoDa: 'lista' }, { merge: true });

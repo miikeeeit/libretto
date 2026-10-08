@@ -94,3 +94,32 @@ export async function controllaSospensione(workerUid: string): Promise<void> {
     );
   }
 }
+
+/**
+ * Porta in E.164 un numero scritto a mano: "347 123 4567", "0039 347…", "+39 347…".
+ * Come `normalizzaTelefono` dell'app, senza i controlli sul cellulare: qui serve solo a
+ * confrontare, non a decidere se un numero è valido.
+ */
+export function inE164(grezzo: string): string {
+  // Anche i caratteri invisibili che restano copiando un numero da una pagina.
+  const pulito = grezzo.replace(/[\s.\-()/\u200b-\u200d\ufeff]/g, '');
+  if (pulito.startsWith('+')) return pulito;
+  if (pulito.startsWith('00')) return `+${pulito.slice(2)}`;
+  return `+39${pulito.replace(/^0+/, '')}`;
+}
+
+/**
+ * Il numero è nella lista dei responsabili che Mike conosce (`responsabiliNoti`)?
+ *
+ * La lista si scrive a mano dalla console, e lì un numero si scrive in tanti modi: con
+ * gli spazi, con 0039, senza +39. Prima si cercava il documento con l'id esatto, e un
+ * id scritto «quasi giusto» non valeva: l'8 ottobre ha tenuto bloccato un collega che
+ * Mike aveva appena sbloccato. La lista è di pochi numeri, quindi si legge tutta e si
+ * confronta normalizzando.
+ */
+export async function numeroNoto(telefono: string): Promise<boolean> {
+  const esatto = await db.doc(`responsabiliNoti/${telefono}`).get();
+  if (esatto.exists) return true;
+  const lista = await db.collection('responsabiliNoti').get();
+  return lista.docs.some((d) => inE164(d.id) === telefono);
+}

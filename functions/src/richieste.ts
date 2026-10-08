@@ -10,6 +10,7 @@ import {
   fraGiorni,
   GIORNI_SCADENZA,
   mascheraTelefono,
+  numeroNoto,
   MAX_RICHIESTE_APERTE,
   periodiSiSovrappongono,
   telefonoValido,
@@ -36,7 +37,7 @@ async function colleghiNonSiConfermano(
   // conosce (`responsabiliNoti`) può confermare anche se ha lavorato lì nello stesso
   // periodo. Il capo sala è spesso uno stagionale anche lui, e la lista la controlla
   // solo Mike, quindi due colleghi d'accordo non possono sfruttarla.
-  if ((await db.doc(`responsabiliNoti/${telefonoResponsabile}`).get()).exists) return;
+  if (await numeroNoto(telefonoResponsabile)) return;
 
   const conQuelNumero = await db.collection('workers').where('telefono', '==', telefonoResponsabile).get();
 
@@ -48,6 +49,8 @@ async function colleghiNonSiConfermano(
       return periodiSiSovrappongono(dati, periodo);
     });
     if (insieme) {
+      // Nei log, per capire un blocco che Mike pensava di aver tolto: mai il numero.
+      console.info('Richiesta fermata: collega della stessa struttura e periodo, numero non nella lista dei noti.');
       throw new HttpsError(
         'failed-precondition',
         'Questo numero risulta di un collega che ha lavorato lì nello stesso periodo. La conferma deve arrivare da chi ti ha visto lavorare, non da chi lavorava con te.',
