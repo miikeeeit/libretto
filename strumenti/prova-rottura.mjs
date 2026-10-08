@@ -330,6 +330,26 @@ await titolo('Il link e chi lo apre');
   const letta = await chiama('leggiRichiesta', { token });
   if (letta.risultato?.stato === 'usata') ok('il link usato si legge come «usata»');
   else no('il link usato si legge come «usata»', `stato: ${letta.risultato?.stato}`);
+
+  // Chi ha mandato il link e lo riapre dalla chat deve sapere che è il suo, e nessun
+  // altro deve sentirselo dire.
+  const [suo, delResponsabile, anonimo] = await Promise.all([
+    chiama('leggiRichiesta', { token }, mario),
+    chiama('leggiRichiesta', { token }, responsabile),
+    chiama('leggiRichiesta', { token }),
+  ]);
+  if (
+    suo.risultato?.tuaRichiesta === true &&
+    delResponsabile.risultato?.tuaRichiesta !== true &&
+    anonimo.risultato?.tuaRichiesta !== true
+  ) {
+    ok('il link si riconosce come «tuo» solo da chi l’ha mandato');
+  } else {
+    no(
+      'il link si riconosce come «tuo» solo da chi l’ha mandato',
+      JSON.stringify([suo.risultato?.tuaRichiesta, delResponsabile.risultato?.tuaRichiesta, anonimo.risultato?.tuaRichiesta]),
+    );
+  }
 }
 
 // ---- Il link scaduto ----------------------------------------------------

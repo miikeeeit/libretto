@@ -6,7 +6,7 @@
 // vuoto.
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useVerificaTelefono } from '../auth/useVerificaTelefono';
 import { NOME_APP } from '../config';
 import { nomeCompetenza, nomeRuolo } from '../data/ruoli';
@@ -31,6 +31,29 @@ const MESSAGGI_LINK: Record<string, string> = {
   usata: 'Questa conferma è già stata data. Grazie.',
   scaduta: 'Questo link è scaduto. Chiedi a chi te l’ha mandato di rimandartelo.',
   revocata: 'Questo link non è più valido.',
+};
+
+const MESSAGGI_PER_CHI_HA_MANDATO: Record<DatiRichiesta['stato'], { titolo: string; testo: string }> = {
+  aperta: {
+    titolo: 'Questo è il link per il tuo responsabile.',
+    testo: 'Lo deve aprire lui, dal suo telefono. Tu non devi fare altro: quando conferma, la stagione si aggiorna da sola nel tuo libretto.',
+  },
+  usata: {
+    titolo: 'Il tuo responsabile ha già usato questo link.',
+    testo: 'Com’è andata lo vedi nel tuo libretto.',
+  },
+  scaduta: {
+    titolo: 'Questo link è scaduto.',
+    testo: 'Dal tuo libretto puoi mandarne uno nuovo.',
+  },
+  revocata: {
+    titolo: 'Questo link non vale più.',
+    testo: 'Ne hai mandato uno più nuovo, o hai corretto la stagione: vale solo l’ultimo.',
+  },
+  inesistente: {
+    titolo: 'Questa stagione non c’è più.',
+    testo: 'Il link non porta più da nessuna parte.',
+  },
 };
 
 type Passo = 'caricamento' | 'quattro-righe' | 'codice' | 'modulo' | 'numero-sbagliato' | 'fatto';
@@ -58,7 +81,10 @@ export default function Conferma() {
     try {
       const risposta = await leggiRichiesta({ token });
       setDati(risposta.data);
-      if (risposta.data.stato === 'aperta') {
+      if (risposta.data.tuaRichiesta) {
+        // Il lavoratore che riapre il proprio link: niente verifica, niente evento.
+        setPasso('quattro-righe');
+      } else if (risposta.data.stato === 'aperta') {
         // Chi è già collegato col numero giusto salta la verifica.
         setPasso(risposta.data.numeroCoincide ? 'modulo' : 'quattro-righe');
         setCompetenze(risposta.data.competenzeDichiarate);
@@ -80,6 +106,23 @@ export default function Conferma() {
     return (
       <main className="schermata schermata--centrata">
         <p className="aiuto">Un momento…</p>
+      </main>
+    );
+  }
+
+  // Chi ha mandato il link e lo riapre dalla sua chat. La pagina è fatta per il
+  // responsabile: a lui serve solo sapere a che punto è e tornare al libretto.
+  if (dati?.tuaRichiesta) {
+    const perTe = MESSAGGI_PER_CHI_HA_MANDATO[dati.stato];
+    return (
+      <main className="schermata schermata--centrata">
+        <div className="scheda">
+          <h1>{perTe.titolo}</h1>
+          <p>{perTe.testo}</p>
+          <Link to="/libretto" className="bottone bottone--principale">
+            Torna al tuo libretto
+          </Link>
+        </div>
       </main>
     );
   }

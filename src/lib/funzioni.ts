@@ -27,11 +27,15 @@ export type DatiRichiesta =
       numeroCoincide: boolean;
       /** Vero solo per chi ha confermato da quel link: c'è una conferma da poter revocare. */
       revocabile?: boolean;
+      /** Vero se chi apre il link è il lavoratore che l'ha mandato. */
+      tuaRichiesta?: boolean;
     }
   | {
       stato: 'aperta';
       /** Vero solo se chi chiama ha già verificato il numero giusto. Il numero non arriva mai. */
       numeroCoincide: boolean;
+      /** Vero se chi apre il link è il lavoratore che l'ha mandato. */
+      tuaRichiesta?: boolean;
       nomeLavoratore: string;
       nomeDiBattesimo: string;
       struttura: string;

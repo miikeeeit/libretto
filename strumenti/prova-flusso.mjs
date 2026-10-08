@@ -321,6 +321,14 @@ try {
   if (statoAttesa.toLowerCase() !== 'in attesa') throw new Error(`Stato inatteso: "${statoAttesa}"`);
   fatto('la stagione è passata in attesa');
 
+  // Il lavoratore riapre il suo link dalla chat WhatsApp: deve capire che è per il
+  // responsabile e poter tornare al libretto (segnalato da un collega della beta).
+  await page.goto(`${BASE}/c/${token}`, { waitUntil: 'load' });
+  await page.getByRole('heading', { name: 'Questo è il link per il tuo responsabile.' }).waitFor({ timeout: 20000 });
+  await page.getByRole('link', { name: 'Torna al tuo libretto' }).click();
+  await page.locator('.elenco-stagioni').waitFor({ timeout: 20000 });
+  fatto('chi ha mandato il link e lo riapre torna al libretto');
+
   // ---- C2: un numero che passa la maschera ma non è quello giusto ----------
   // 348 555 5522 ha le stesse cifre visibili di 348 111 2222: il controllo del client
   // lo lascia passare, e deve fermarlo il server. È la prova che conta.

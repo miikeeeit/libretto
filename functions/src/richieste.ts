@@ -218,6 +218,11 @@ export const leggiRichiesta = onCall(async (richiesta) => {
   const telefonoChiamante = richiesta.auth?.token?.phone_number;
   const numeroCoincide = telefonoChiamante === dati.telefonoResponsabile;
 
+  // Chi ha mandato il link a volte lo riapre dalla sua chat WhatsApp: senza saperlo,
+  // la pagina gli parlava come al responsabile e lo lasciava lì, senza strada per
+  // tornare al libretto. Lo si dice solo a lui: è il suo link.
+  const tuaRichiesta = !!richiesta.auth?.uid && richiesta.auth.uid === dati.workerUid;
+
   const scaduta = dati.scadeIl.toMillis() < Date.now();
   const stato = dati.stato === 'aperta' && scaduta ? 'scaduta' : dati.stato;
 
@@ -230,11 +235,11 @@ export const leggiRichiesta = onCall(async (richiesta) => {
       stato === 'usata' &&
       numeroCoincide &&
       !(await db.collection('conferme').where('richiestaId', '==', token).limit(1).get()).empty;
-    return { stato, numeroCoincide, revocabile };
+    return { stato, numeroCoincide, revocabile, tuaRichiesta };
   }
 
   // Senza la foto di cosa è stato chiesto non si può mostrare niente con onestà.
-  if (!dati.stagioneAlMomento) return { stato: 'revocata' as const, numeroCoincide };
+  if (!dati.stagioneAlMomento) return { stato: 'revocata' as const, numeroCoincide, tuaRichiesta };
 
   const [workerSnap, stagioneSnap] = await Promise.all([
     db.doc(`workers/${dati.workerUid}`).get(),
@@ -242,7 +247,7 @@ export const leggiRichiesta = onCall(async (richiesta) => {
   ]);
 
   if (!workerSnap.exists || !stagioneSnap.exists) {
-    return { stato: 'inesistente' as const, numeroCoincide };
+    return { stato: 'inesistente' as const, numeroCoincide, tuaRichiesta };
   }
 
   const worker = workerSnap.data() as { nome: string; cognome: string };
@@ -261,7 +266,7 @@ export const leggiRichiesta = onCall(async (richiesta) => {
   // confermerebbe una cosa diversa da quella per cui gli è arrivata la richiesta. Lo
   // dice già qui, invece di farglielo scoprire dopo aver verificato il numero.
   if (stagione.richiestaId !== token || stagione.stato !== 'in_attesa') {
-    return { stato: 'revocata' as const, numeroCoincide };
+    return { stato: 'revocata' as const, numeroCoincide, tuaRichiesta };
   }
 
   // Le quattro righe vengono dalla foto del momento dell'invio, non dallo stato
@@ -272,6 +277,7 @@ export const leggiRichiesta = onCall(async (richiesta) => {
   return {
     stato: 'aperta' as const,
     numeroCoincide,
+    tuaRichiesta,
     nomeLavoratore: `${worker.nome} ${worker.cognome}`,
     nomeDiBattesimo: worker.nome,
     struttura: chiesto.strutturaNome,
