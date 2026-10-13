@@ -29,6 +29,7 @@ quella frase cade, non resta niente — è un CV con la grafica più bella.
 | Identità visiva (canvas, non ancora nel codice) | <https://claude.ai/artifact/99eUzj74DXGWbq6CXZ3m6p> |
 | Il brief per continuare il canvas, coi testi veri | [`BRIEF_DESIGN.md`](BRIEF_DESIGN.md) |
 | La scheda per il professionista della privacy (PC5) | <https://claude.ai/code/artifact/f392db09-27ab-49b2-9e13-e3b7b1ad8bcb> |
+| La campagna Instagram, bozza con sei decisioni aperte | [`CAMPAGNA_INSTAGRAM.md`](CAMPAGNA_INSTAGRAM.md) |
 
 ## A che punto è
 
