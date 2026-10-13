@@ -30,7 +30,9 @@ l'accesso con un telefono vero (decisione PC1: l'avviso non è ancora impostato)
 
 1. [console.cloud.google.com/billing](https://console.cloud.google.com/billing) → il progetto →
    **Budget e avvisi** → **Crea budget**.
-2. Importo mensile basso, per esempio **5 €**, e avvisi al 50 %, 90 % e 100 %.
+2. Importo mensile **10 €**, cioè i circa 120 € l'anno che Mike ha deciso di metterci
+   (`DECISIONI.md`, 13 ottobre), e avvisi al 50 %, 90 % e 100 %. È un avviso, non un tetto:
+   la spesa non si ferma da sola.
 3. Spunta l'invio dell'avviso via email.
 4. Console Firebase → **Authentication** → **Settings** → **SMS region policy**: lascia attiva
    **solo l'Italia**. È la difesa che conta davvero, perché quasi tutto l'abuso di SMS arriva

@@ -198,7 +198,7 @@ Didascalia: «Chiedi la conferma finché la stagione è fresca.»
 - «Il titolare vede le mie altre stagioni?» — No. Vede solo la stagione che gli chiedi di
   confermare.
 - «Funziona fuori dalla provincia di Latina?» — Per ora no. Si comincia da qui.
-- «Quanto costa?» — *[da decidere: vedi la decisione 6]*
+- «Quanto costa?» — Per chi lavora, niente. E a chi conferma una stagione non costa niente.
 
 ## Tre reel
 
@@ -247,6 +247,9 @@ Funziona perché è vero: un collega che ha avuto il problema, non un'azienda. P
 niente parti inventate.
 
 ## A pagamento, se e quando
+
+**Per ora no** (decisione 4): con circa 120 € l'anno per tutto Libretto, gli annunci non ci
+stanno. Quello che segue vale per quando il budget crescerà.
 
 Non prima di A, e non prima che il profilo abbia i suoi primi nove post: chi clicca un
 annuncio guarda il profilo prima di fidarsi.
@@ -305,10 +308,14 @@ vanno in [`DECISIONI.md`](DECISIONI.md) con la data.
    entrare (la proposta di questo piano), oppure direttamente ad A.
 3. **La tua faccia.** Il copione C funziona solo se ci sei tu. Senza, il filone «problema» si
    regge su grafiche e reel recitati, e perde la cosa più credibile che hai: sei un collega.
-4. **Il budget degli annunci.** Zero, cioè solo contenuti, oppure una prova breve dopo A, con
-   una cifra e una data di fine. Se sì, l'avviso di Blaze va rivisto prima.
+4. **Il budget degli annunci.** *Ne segue dal budget del 13 ottobre: zero, solo contenuti.*
+   Mike mette circa 120 € l'anno per tutto Libretto (`DECISIONI.md`), e gli SMS ne prendono
+   già quasi tutti. Una prova di una settimana a 5 € al giorno ne brucerebbe un terzo, più gli
+   SMS delle persone che porta. Si riapre se il budget cresce.
 5. **Il blu nell'app.** Le grafiche dei post nascono «Blu», l'app oggi è verde e il blu entra
    nel codice dopo la beta (24 e 30 settembre). Se ad A l'app è ancora verde, il reel B mostra
    un'app diversa dai post. O il blu arriva prima di A, o si gira il reel B dopo.
-6. **«Quanto costa».** Oggi per il lavoratore Libretto non costa niente. Dirlo in un post è una
-   promessa: si può fare?
+6. **«Quanto costa».** *Deciso il 13 ottobre: Libretto guadagnerà sui datori, mai sui
+   lavoratori, e solo nella V2.* In pubblico si dice: «Per chi lavora, niente. E a chi conferma
+   una stagione non costa niente.» Non si dice niente su cosa pagheranno i datori finché non è
+   deciso.

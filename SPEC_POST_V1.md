@@ -162,7 +162,9 @@ Annunci corti, paga obbligatoria. Il matching si fa con filtri, non con IA.
 Con 20–50 annunci per zona i filtri bastano. Da rivalutare solo con centinaia di annunci in una zona.
 
 ### [DECISIONE APERTA]
-- Pubblicare annunci è gratuito o a pagamento per il datore?
+- Pubblicare annunci è gratuito o a pagamento per il datore? *13 ottobre: Libretto guadagnerà
+  sui datori, mai sui lavoratori (vedi `DECISIONI.md`). Resta da decidere cosa si paga di
+  preciso: annunci, ricerca o contatto.*
 - La paga obbligatoria scoraggia troppi datori? Misurare dopo i primi annunci.
 
 ---
