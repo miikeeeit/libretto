@@ -17,7 +17,7 @@ l'informativa rivista da un professionista (§0 della specifica), e i codici val
 numero solo, quindi non esiste un codice «instagram» da mettere in un post.
 
 Ne viene la regola che regge tutto il calendario: **fino all'apertura, Instagram non chiede a
-nessuno di entrare.** Può far conoscere il problema, il nome e la faccia; l'invito a entrare
+nessuno di entrare.** Può far conoscere il problema e il nome; l'invito a entrare
 parte il giorno in cui `BETA_SU_INVITO` diventa `false`. In questo documento quel giorno si
 chiama **A**. La specifica lo mette a fine novembre.
 
@@ -90,7 +90,7 @@ Legato a due cose: il giorno A e la stagione. Le date precise dipendono da PC5.
 | Quando | Cosa | Invito a entrare |
 |---|---|---|
 | Da ora ad A − 3 settimane | Le decisioni in fondo. Nome e profilo. Girare il materiale: i reel e le foto. | no |
-| Da A − 3 settimane ad A | **Riscaldamento.** Tre post a settimana sul problema e su chi c'è dietro. Storie con domande. | no |
+| Da A − 3 settimane ad A | **Riscaldamento.** Tre post a settimana sul problema. Storie con domande. | no |
 | Settimana di A | **Apertura.** Un post al giorno per cinque giorni, storie ogni giorno, e un DM a chi aveva chiesto. | sì |
 | A + 6 settimane | **Dopo l'apertura.** Tre post a settimana. Le prime conferme vere, se chi le ha ricevute è d'accordo. | sì |
 | Gennaio – aprile | **Le assunzioni per l'estate.** «Metti il link nel messaggio a chi ti assume»: è il terzo obiettivo della §12. | sì |
@@ -172,7 +172,19 @@ Didascalia: «Uno lo puoi scrivere stasera. L'altro te lo devi guadagnare in una
 
 Didascalia: «Se lavori con stagionali, prima o poi ti arriva. Ora sai cos'è.»
 
-**6 · Reel · Perché l'ho fatto** *(problema)* — copione C, con Mike in camera.
+**6 · Carosello · Cosa vede chi ti assume** *(come funziona)*
+
+Al posto del reel con la faccia di Mike, rimandato (decisione 3). Le schede si disegnano dalla
+pagina pubblica blu del canvas dell'identità, con i dati di esempio.
+
+1. «Mandi il tuo link. Cosa vede chi ti assume?»
+2. «In cima, chi ha confermato le tue stagioni.»
+3. «Le stagioni confermate, piene. Con il ruolo di chi le ha confermate, mai il nome.»
+4. «Se vuoi, anche quelle in attesa, in un elenco a parte. Si vede che le hai scritte tu.»
+5. «Le cose che sai fare: piene se confermate, tratteggiate se le hai solo scritte.»
+6. «Il tuo numero non c'è, se non lo accendi tu.»
+
+Didascalia: «Una pagina, un minuto. È quello che legge un titolare prima di chiamarti.»
 
 **7 · Carosello · I dati sono tuoi** *(dati; fissato in alto)*
 
@@ -200,18 +212,22 @@ Didascalia: «Chiedi la conferma finché la stagione è fresca.»
 - «Funziona fuori dalla provincia di Latina?» — Per ora no. Si comincia da qui.
 - «Quanto costa?» — Per chi lavora, niente. E a chi conferma una stagione non costa niente.
 
-## Tre reel
+## I reel
 
 Girati col telefono, in verticale, con le scritte a schermo: molti guardano senza audio.
+
+**Senza volti**, finché Mike non decide di metterci la faccia (decisione 3): inquadrature
+strette su mani, bancone e telefono, e le voci possono essere di chiunque. Se un collega
+vuole comparire, solo col suo permesso scritto.
 
 **Copione A · «Quattro stagioni, zero prove»** (15–20 secondi)
 
 | Secondi | Si vede | Scritta / voce |
 |---|---|---|
-| 0–3 | Un bancone, di spalle chi fa il colloquio | «Hai esperienza?» |
-| 3–6 | Il lavoratore, sicuro | «Quattro stagioni.» |
+| 0–3 | Un bancone, le mani di chi fa il colloquio | «Hai esperienza?» |
+| 3–6 | Le mani del lavoratore, appoggiate al bancone | «Quattro stagioni.» |
 | 6–9 | | «Dove?» — «Al Lido [nome inventato], poi...» |
-| 9–12 | Chi fa il colloquio alza un sopracciglio | «E chi me lo dice?» |
+| 9–12 | Le mani di chi fa il colloquio si fermano | «E chi me lo dice?» |
 | 12–16 | Il telefono del lavoratore: la sua pagina pubblica, stagioni confermate | — |
 | 16–20 | Fine | «Chiedi pure al titolare. Su Libretto ha già risposto.» |
 
@@ -231,7 +247,11 @@ nessun SMS parte e i dati si inventano; la barra dell'indirizzo si taglia in mon
 inventati, e nessun numero di telefono vero a schermo. In alternativa, una stagione vera di
 Mike già confermata, se chi l'ha confermata è d'accordo.
 
-**Copione C · Perché l'ho fatto** (30–40 secondi, Mike in camera)
+**Copione C · Perché l'ho fatto** (30–40 secondi, Mike in camera) — **rimandato**
+
+*Il 13 ottobre Mike ha scelto di vedere prima come va. Si riprende a gennaio, con i numeri di
+dicembre in mano: è anche il momento giusto, prima delle assunzioni per l'estate. Fino ad
+allora l'account parla come Libretto, non come Mike, e nessun post dice chi c'è dietro.*
 
 Una traccia, non un testo da leggere: le parti fra parentesi le sai solo tu.
 
@@ -306,8 +326,9 @@ vanno in [`DECISIONI.md`](DECISIONI.md) con la data.
    `DECISIONI.md` e la regola 8).* Resta da controllare quale handle è libero.
 2. **Quando aprire l'account.** Tre settimane prima di A, con il riscaldamento senza invito a
    entrare (la proposta di questo piano), oppure direttamente ad A.
-3. **La tua faccia.** Il copione C funziona solo se ci sei tu. Senza, il filone «problema» si
-   regge su grafiche e reel recitati, e perde la cosa più credibile che hai: sei un collega.
+3. **La tua faccia.** *Deciso il 13 ottobre: non per ora, prima si vede come va.* Il reel C
+   aspetta; al suo posto, fra i primi nove, il carosello «Cosa vede chi ti assume». I reel si
+   girano senza volti. Si riparla a gennaio, con i numeri di dicembre.
 4. **Il budget degli annunci.** *Ne segue dal budget del 13 ottobre: zero, solo contenuti.*
    Mike mette circa 120 € l'anno per tutto Libretto (`DECISIONI.md`), e gli SMS ne prendono
    già quasi tutti. Una prova di una settimana a 5 € al giorno ne brucerebbe un terzo, più gli
