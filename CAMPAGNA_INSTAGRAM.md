@@ -174,15 +174,23 @@ Didascalia: «Se lavori con stagionali, prima o poi ti arriva. Ora sai cos'è.»
 
 **6 · Carosello · Cosa vede chi ti assume** *(come funziona)*
 
-Al posto del reel con la faccia di Mike, rimandato (decisione 3). Le schede si disegnano dalla
-pagina pubblica blu del canvas dell'identità, con i dati di esempio.
+Al posto del reel con la faccia di Mike, rimandato (decisione 3). Disegnato sul canvas
+Instagram, dalla pagina pubblica blu; le frasi dentro le schede sono quelle che la pagina e le
+impostazioni scrivono davvero.
 
-1. «Mandi il tuo link. Cosa vede chi ti assume?»
-2. «In cima, chi ha confermato le tue stagioni.»
-3. «Le stagioni confermate, piene. Con il ruolo di chi le ha confermate, mai il nome.»
-4. «Se vuoi, anche quelle in attesa, in un elenco a parte. Si vede che le hai scritte tu.»
-5. «Le cose che sai fare: piene se confermate, tratteggiate se le hai solo scritte.»
-6. «Il tuo numero non c'è, se non lo accendi tu.»
+1. «Mandi il tuo link.» «Cosa vede chi ti assume?» — con `…/p/mario-rossi`.
+2. «In cima, chi ha confermato le tue stagioni.» — l'intestazione della pagina: «Due strutture
+   hanno confermato le stagioni di Mario: …» e «Una di loro lo riprenderebbe.»
+3. «Le stagioni confermate, piene.» «Con il ruolo di chi le ha confermate, mai il nome.»
+4. «Se vuoi, anche quelle in attesa.» «In un elenco a parte: si vede che le hai scritte tu.» —
+   con l'interruttore «Mostra anche le stagioni in attesa».
+5. «Le cose che sai fare.» «Piene se confermate, tratteggiate se le hai solo scritte.»
+6. «Il tuo numero non c'è, se non lo accendi tu.» — con «Mostra il mio numero», spento.
+
+**Prima di pubblicarlo**: i locali nelle schede (Bar Approdo, Lido Ventotto, Ristorante Sette
+Lune) sono inventati, perché qui il punto è proprio che la pagina nomina i locali. Va
+controllato che in zona non esistano, oppure si mette un locale vero che ha dato il permesso
+per scritto (regola 3).
 
 Didascalia: «Una pagina, un minuto. È quello che legge un titolare prima di chiamarti.»
 
