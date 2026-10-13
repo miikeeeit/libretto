@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { NOME_APP, STAGIONE_DISPONIBILITA } from '../config';
-import { nomeCompetenza, nomeRuolo } from '../data/ruoli';
+import { confermataDa, nomeCompetenza, nomeRuolo } from '../data/ruoli';
 import { messaggioErrore } from '../lib/errori';
 import { registraEvento } from '../lib/eventi';
 import { formattaPeriodo } from '../lib/periodo';
@@ -22,6 +22,10 @@ const ETICHETTE: Record<StatoStagione, string> = {
   non_confermata: 'Non confermata',
   scaduta: 'Scaduta',
 };
+
+function maiuscola(testo: string): string {
+  return testo.charAt(0).toUpperCase() + testo.slice(1);
+}
 
 function numeri(stagioni: StagioneConId[]): string {
   const r = riepiloga(stagioni);
@@ -186,7 +190,7 @@ export default function Libretto() {
 
               {s.stato === 'confermata' && (
                 <p className="riga-conferma">
-                  Confermata{s.ruoloResponsabile ? ` dal ${s.ruoloResponsabile}` : ''}
+                  {maiuscola(confermataDa(s.ruoloResponsabile))}
                   {s.riprenderebbe && <span className="badge">Lo riprenderebbe</span>}
                 </p>
               )}
@@ -238,7 +242,7 @@ export default function Libretto() {
           solo dichiarato, e non vede il tuo numero se non lo accendi tu.
         </p>
         <div className="riga-bottoni">
-          <Link to={`/p/${worker.slug}`} className="bottone bottone--secondario bottone--piccolo">
+          <Link to={`/p/${worker.slug}`} state={{ mia: true }} className="bottone bottone--secondario bottone--piccolo">
             Vedi la mia pagina
           </Link>
           <button

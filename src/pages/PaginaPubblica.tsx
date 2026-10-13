@@ -6,9 +6,9 @@
 // Per questo confermato e dichiarato non si mescolano mai.
 
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { NOME_APP } from '../config';
-import { nomeCompetenza, nomeRuolo } from '../data/ruoli';
+import { confermataDa, nomeCompetenza, nomeRuolo } from '../data/ruoli';
 import { registraEvento } from '../lib/eventi';
 import { urlCv } from '../lib/funzioni';
 import { DA_OSPITE } from '../lib/ospite';
@@ -66,19 +66,27 @@ function riprenderebbero(p: ProfiloPubblico): string {
 
 export default function PaginaPubblica() {
   const { slug = '' } = useParams();
+  // Il lavoratore che guarda la sua pagina dal libretto non è un datore: non si conta
+  // (§12), altrimenti ogni controllo di come appare gonfiava le visite.
+  const mia = (useLocation().state as { mia?: boolean } | null)?.mia === true;
   const [profilo, setProfilo] = useState<ProfiloPubblico | null | undefined>(undefined);
+  // Un errore di rete non è un profilo che non esiste: prima a un datore con poco
+  // segnale il link sembrava morto («questa pagina non è disponibile»).
+  const [erroreRete, setErroreRete] = useState(false);
+  const [tentativo, setTentativo] = useState(0);
   const [foto, setFoto] = useState<string | null>(null);
   const [cvInCorso, setCvInCorso] = useState(false);
   const [erroreCv, setErroreCv] = useState<string | null>(null);
 
   useEffect(() => {
     let annullato = false;
+    setErroreRete(false);
     leggiProfiloPubblico(slug)
       .then(async (p) => {
         if (annullato) return;
         setProfilo(p);
         if (p) {
-          await registraEvento('profilo_pubblico_visto');
+          if (!mia) await registraEvento('profilo_pubblico_visto');
           if (p.fotoPath) {
             const url = await urlFotoPubblica(p.fotoPath);
             if (!annullato) setFoto(url);
@@ -86,12 +94,26 @@ export default function PaginaPubblica() {
         }
       })
       .catch(() => {
-        if (!annullato) setProfilo(null);
+        if (!annullato) setErroreRete(true);
       });
     return () => {
       annullato = true;
     };
-  }, [slug]);
+  }, [slug, tentativo, mia]);
+
+  if (erroreRete) {
+    return (
+      <main className="schermata schermata--centrata">
+        <div className="scheda">
+          <h1>Non riesco a caricare questa pagina</h1>
+          <p className="aiuto">Di solito è la connessione. Controllala e riprova.</p>
+          <button type="button" className="bottone bottone--principale" onClick={() => setTentativo((t) => t + 1)}>
+            Riprova
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (profilo === undefined) {
     return (
@@ -222,7 +244,7 @@ export default function PaginaPubblica() {
               </p>
               <p className="aiuto">{formattaPeriodo(s.dal, s.al)}</p>
               <p className="riga-conferma">
-                {s.ruoloResponsabile ? `Confermata dal ${s.ruoloResponsabile}` : 'Confermata'}
+                {maiuscola(confermataDa(s.ruoloResponsabile))}
                 {s.riprenderebbe && <span className="badge">Lo riprenderebbe</span>}
               </p>
             </li>

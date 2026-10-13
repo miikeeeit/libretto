@@ -74,5 +74,7 @@ export async function esportaDati(uid: string): Promise<void> {
   collegamento.href = url;
   collegamento.download = `libretto-${new Date().toISOString().slice(0, 10)}.json`;
   collegamento.click();
-  URL.revokeObjectURL(url);
+  // Non subito: Safari sul telefono avvia lo scaricamento un attimo dopo il clic, e un
+  // indirizzo già revocato gli dava un file vuoto.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

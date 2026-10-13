@@ -16,6 +16,23 @@ import PaginaPubblica from './pages/PaginaPubblica';
 import Privacy from './pages/Privacy';
 
 function Attesa() {
+  const { erroreProfilo, riprovaProfilo, esci } = useAuth();
+  if (erroreProfilo) {
+    return (
+      <main className="schermata schermata--centrata">
+        <div className="scheda">
+          <h1>Non riesco a caricare il tuo libretto</h1>
+          <p className="aiuto">Di solito è la connessione. Controllala e riprova.</p>
+          <button type="button" className="bottone bottone--principale" onClick={riprovaProfilo}>
+            Riprova
+          </button>
+          <button type="button" className="bottone-testo" onClick={() => void esci()}>
+            Esci
+          </button>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="schermata schermata--centrata">
       <p className="aiuto">Un momento…</p>

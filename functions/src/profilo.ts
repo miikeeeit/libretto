@@ -13,6 +13,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adesso, db, testoRichiesto } from './comune';
+import { dopoStagioneCancellata } from './stagioniCancellate';
 
 type Privacy = {
   pubblico: boolean;
@@ -167,8 +168,14 @@ export const pubblicaProfilo = onDocumentWritten('workers/{uid}', (evento) => {
   return ricostruisci(evento.params.uid, typeof slugPrecedente === 'string' ? slugPrecedente : undefined);
 });
 
-export const pubblicaProfiloStagioni = onDocumentWritten('workers/{uid}/stagioni/{stagioneId}', (evento) =>
-  ricostruisci(evento.params.uid),
+export const pubblicaProfiloStagioni = onDocumentWritten(
+  'workers/{uid}/stagioni/{stagioneId}',
+  async (evento) => {
+    if (evento.data?.before?.exists && !evento.data?.after?.exists) {
+      await dopoStagioneCancellata(evento.params.uid, evento.params.stagioneId);
+    }
+    await ricostruisci(evento.params.uid);
+  },
 );
 
 /**

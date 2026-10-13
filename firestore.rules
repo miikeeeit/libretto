@@ -120,21 +120,43 @@ service cloud.firestore {
       allow get: if proprietario(uid);
       allow list: if false;
 
+      // I consensi portano l'ora del server, non quella del telefono: è la prova di quando
+      // sono stati dati, e un'ora scelta dal client si poteva retrodatare.
+      function consensiDiAdesso(d) {
+        return d.consensi.maggiorenne == request.time
+          && d.consensi.informativa.ts == request.time;
+      }
+
+      // Si può accettare una versione nuova dell'informativa, con l'ora del server; la
+      // dichiarazione dei 18 anni resta quella data all'inizio.
+      function consensiAggiornatiBene() {
+        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['consensi'])
+          || (request.resource.data.consensi.maggiorenne == resource.data.consensi.maggiorenne
+              && request.resource.data.consensi.informativa.ts == request.time);
+      }
+
       allow create: if proprietario(uid)
         && campiAmmessi(request.resource.data)
         && formaValida(request.resource.data)
+        && consensiDiAdesso(request.resource.data)
         && telefonoSuo(request.resource.data)
         && slugSuo(request.resource.data)
         && invitoSuo(request.resource.data);
 
       // Telefono, slug, invito e createdAt non si toccano più: non sono nell'elenco.
+      // Nemmeno nome e cognome: chi ha confermato una stagione l'ha confermata a quella
+      // persona, e il nome è quello che il responsabile ha letto nel link. Si potevano
+      // cambiare dal client (l'app non lo fa, ma le regole lo lasciavano fare), e un
+      // libretto pieno di conferme poteva passare a un altro nome. Un errore di battitura
+      // lo corregge Mike dalla console.
       allow update: if proprietario(uid)
         && campiAmmessi(request.resource.data)
         && formaValida(request.resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'nome', 'cognome', 'fotoPath', 'ruoloPrincipale', 'comune', 'provincia', 'geohash',
+          'fotoPath', 'ruoloPrincipale', 'comune', 'provincia', 'geohash',
           'disponibile', 'stagioneDisponibile', 'privacy', 'cvPath', 'consensi', 'updatedAt'
-        ]);
+        ])
+        && consensiAggiornatiBene();
 
       // La cancellazione passa dalla Cloud Function `eliminaAccount`, che deve portarsi
       // via anche stagioni, richieste, conferme, foto e CV (§10).

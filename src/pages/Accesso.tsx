@@ -30,6 +30,13 @@ const CHIAVE_INVITO = 'libretto.invito';
  * poterlo mostrare: così il messaggio la aspetta quando si torna qui.
  */
 const CHIAVE_ERRORE = 'libretto.erroreAccesso';
+/**
+ * Il segno che i due consensi di L1 (18 anni, informativa) sono stati dati da questo uid.
+ * L2 scrive i consensi nel profilo: senza questo segno non poteva sapere se erano stati
+ * dati davvero, e chi arrivava a L2 da un'altra strada — dalla pagina di conferma, dove
+ * si verifica il numero senza quelle due caselle — se li trovava scritti senza averli dati.
+ */
+const CHIAVE_CONSENSI = 'libretto.consensi';
 
 // Si legge senza cancellarlo: in sviluppo React chiama due volte l'inizializzazione, e
 // la seconda lo troverebbe già sparito. Si cancella dopo, una volta mostrato.
@@ -118,6 +125,7 @@ export default function Accesso() {
     setInCorso(true);
     try {
       const uid = (await controllaSms(codice)).uid;
+      conservaConsensi(uid);
 
       if (BETA_SU_INVITO) {
         const pulito = normalizzaCodice(invito);
@@ -273,6 +281,32 @@ export default function Accesso() {
       )}
     </main>
   );
+}
+
+function conservaConsensi(uid: string): void {
+  try {
+    localStorage.setItem(CHIAVE_CONSENSI, JSON.stringify({ uid }));
+  } catch {
+    // Memoria del browser chiusa: L2 chiederà di nuovo le due spunte.
+  }
+}
+
+/** Questo uid ha dato i due consensi di L1 su questo telefono? */
+export function consensiDati(uid: string): boolean {
+  try {
+    const salvato = JSON.parse(localStorage.getItem(CHIAVE_CONSENSI) ?? 'null') as { uid?: string } | null;
+    return salvato?.uid === uid;
+  } catch {
+    return false;
+  }
+}
+
+export function scartaConsensi(): void {
+  try {
+    localStorage.removeItem(CHIAVE_CONSENSI);
+  } catch {
+    // Niente da togliere.
+  }
 }
 
 function conservaInvito(uid: string, codice: string): void {

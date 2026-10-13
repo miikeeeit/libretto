@@ -177,7 +177,12 @@ try {
   if ((await page.getByLabel('Codice di invito').count()) !== 0) {
     throw new Error('Riaprendo l’app il codice di invito è andato perso.');
   }
-  await page.evaluate(() => localStorage.removeItem('libretto.invito'));
+  // E manca anche il segno dei consensi di L1, come per chi arriva qui dalla pagina di
+  // conferma: la pagina deve chiedere le due spunte, non darle per date.
+  await page.evaluate(() => {
+    localStorage.removeItem('libretto.invito');
+    localStorage.removeItem('libretto.consensi');
+  });
   await page.reload({ waitUntil: 'load' });
   await page.getByRole('heading', { name: /Crea il tuo libretto/i }).waitFor({ timeout: 20000 });
 
@@ -200,11 +205,17 @@ try {
   await schermata(page, '2-profilo');
   await page.getByRole('button', { name: /Crea il mio libretto/i }).click();
 
+  // Prima le due spunte, che senza L1 nessuno ha ancora dato.
+  await page.getByLabel('Ho almeno 18 anni.').waitFor({ timeout: 20000 });
+  await page.getByLabel('Ho almeno 18 anni.').check();
+  await page.getByLabel(/Ho letto l’informativa/).check();
+  await page.getByRole('button', { name: /Crea il mio libretto/i }).click();
+
   // Il codice era stato tolto: la pagina lo chiede invece di bloccarsi.
   await page.getByLabel('Codice di invito').waitFor({ timeout: 20000 });
   await page.getByLabel('Codice di invito').fill(INVITO);
   await page.getByRole('button', { name: /Crea il mio libretto/i }).click();
-  fatto('il codice di invito resta anche chiudendo l’app, e se manca si richiede');
+  fatto('il codice di invito resta anche chiudendo l’app; se mancano, codice e consensi si richiedono');
 
   // ---- L3: il mio libretto -------------------------------------------------
   await page.getByRole('heading', { name: 'Mario Rossi' }).waitFor({ timeout: 20000 });

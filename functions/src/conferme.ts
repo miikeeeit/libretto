@@ -9,18 +9,17 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import {
   adesso,
-  CONFERME_PER_RESPONSABILE_NOTO,
   db,
   fraGiorni,
   GIORNI_REVOCA,
   MAX_CONFERME_AL_GIORNO,
-  numeroNoto,
   RUOLI_RESPONSABILE,
   telefonoDiChiChiama,
   testoRichiesto,
   VERSIONE_CONSENSO,
 } from './comune';
 import { ricostruisciProfiloPubblico } from './profilo';
+import { aggiornaResponsabileNoto, ricontrollaResponsabileNoto } from './responsabiliNoti';
 
 type Richiesta = {
   workerUid: string;
@@ -67,10 +66,24 @@ async function richiestaPerChiamante(token: string, telefono: string, statoAttes
   }
 
   if (richiesta.stato !== statoAtteso) {
-    throw new HttpsError('failed-precondition', `stato:${richiesta.stato}`);
+    throw new HttpsError('failed-precondition', frasePerStato(richiesta.stato, statoAtteso));
   }
 
   return { ref, richiesta };
+}
+
+/**
+ * La frase da mostrare quando il link non è nello stato giusto. Prima arrivava sullo
+ * schermo del responsabile così com'era scritta per noi: «stato:usata».
+ */
+function frasePerStato(stato: string, statoAtteso: string): string {
+  if (statoAtteso === 'usata') {
+    if (stato === 'revocata') return 'Questa conferma è già stata revocata.';
+    return 'Su questo link non c’è una conferma da revocare.';
+  }
+  if (stato === 'usata') return 'Questa conferma è già stata data.';
+  if (stato === 'scaduta') return 'Questo link è scaduto.';
+  return 'Questo link non è più valido.';
 }
 
 /**
@@ -202,11 +215,30 @@ export const confermaStagione = onCall(async (chiamata) => {
   await db.runTransaction(async (tx) => {
     // Si rilegge dentro la transazione: se qualcuno ha confermato un istante prima,
     // il secondo tentativo si fermi qui e non scriva una seconda conferma.
-    const controllo = await tx.get(richiestaRef);
+    const [controllo, stagioneOra, strutturaSnap] = await Promise.all([
+      tx.get(richiestaRef),
+      tx.get(stagioneRef),
+      tx.get(strutturaRef),
+    ]);
     if (controllo.data()?.stato !== 'aperta') {
       throw new HttpsError('failed-precondition', 'Questa conferma è già stata registrata.');
     }
-    const strutturaEsiste = (await tx.get(strutturaRef)).exists;
+    // E anche la stagione: i controlli di sopra la leggono fuori dalla transazione, e
+    // se il lavoratore la correggeva proprio in quel momento la conferma finiva su una
+    // stagione già diversa da quella del link.
+    const ora = stagioneOra.data() as Stagione | undefined;
+    if (
+      !ora ||
+      ora.richiestaId !== token ||
+      ora.stato !== 'in_attesa' ||
+      ora.strutturaId !== stagione.strutturaId ||
+      ora.ruolo !== stagione.ruolo ||
+      ora.dal !== stagione.dal ||
+      ora.al !== stagione.al
+    ) {
+      throw new HttpsError('failed-precondition', 'Questo link non è più valido: la stagione è stata modificata.');
+    }
+    const strutturaEsiste = strutturaSnap.exists;
 
     tx.set(confermaRef, {
       workerUid: richiesta.workerUid,
@@ -260,70 +292,6 @@ export const confermaStagione = onCall(async (chiamata) => {
     revocabileFinoA: revocabileFinoA.toMillis(),
   };
 });
-
-/**
- * §8.3 · «Responsabile noto». Nella v1 il dato non si vede da nessuna parte: serve ai
- * controlli dell'admin e servirà alla ricerca di gennaio. Due strade per diventarlo.
- *
- * La prima (PC4, 2026-09-23): il numero sta nella lista che Mike carica a mano, in
- * `responsabiliNoti`. Si controlla qui e non prima perché un responsabile esiste per
- * Libretto solo dopo aver verificato il suo numero la prima volta: fino a quel momento
- * non c'è nessun documento su cui mettere il flag. Così Mike può caricare i numeri
- * in anticipo e il flag si applica da solo alla prima conferma.
- *
- * La seconda: averne confermati tre diversi nella stessa struttura.
- */
-async function aggiornaResponsabileNoto(
-  responsabileUid: string,
-  telefono: string,
-  strutturaId: string,
-): Promise<void> {
-  if (await numeroNoto(telefono)) {
-    await db
-      .doc(`responsabili/${responsabileUid}`)
-      .set({ verificatoAdmin: true, verificatoDa: 'lista' }, { merge: true });
-    return;
-  }
-
-  const suoi = await db
-    .collection('conferme')
-    .where('responsabileUid', '==', responsabileUid)
-    .where('strutturaId', '==', strutturaId)
-    .get();
-
-  const lavoratoriDiversi = new Set(suoi.docs.map((d) => (d.data() as { workerUid: string }).workerUid));
-  if (lavoratoriDiversi.size >= CONFERME_PER_RESPONSABILE_NOTO) {
-    // `verificatoDa` dice da dove viene il titolo: quello guadagnato con le conferme si
-    // può perdere con una revoca, quello della lista di Mike no.
-    await db
-      .doc(`responsabili/${responsabileUid}`)
-      .set({ verificatoAdmin: true, verificatoDa: 'conferme' }, { merge: true });
-  }
-}
-
-/**
- * Dopo una revoca: se il titolo di «noto» era arrivato dalle conferme e ora non c'è più
- * nessuna struttura con tre lavoratori diversi confermati, si toglie. Prima restava per
- * sempre. Non tocca mai il titolo dato dalla lista di Mike, né uno messo a mano dalla
- * console (che non ha `verificatoDa`).
- */
-async function ricontrollaResponsabileNoto(responsabileUid: string): Promise<void> {
-  const ref = db.doc(`responsabili/${responsabileUid}`);
-  const responsabile = await ref.get();
-  if (responsabile.data()?.verificatoDa !== 'conferme') return;
-
-  const sue = await db.collection('conferme').where('responsabileUid', '==', responsabileUid).get();
-  const lavoratoriPerStruttura = new Map<string, Set<string>>();
-  for (const d of sue.docs) {
-    const { strutturaId, workerUid } = d.data() as { strutturaId: string; workerUid: string };
-    if (!lavoratoriPerStruttura.has(strutturaId)) lavoratoriPerStruttura.set(strutturaId, new Set());
-    lavoratoriPerStruttura.get(strutturaId)!.add(workerUid);
-  }
-  const ancoraNoto = [...lavoratoriPerStruttura.values()].some(
-    (lavoratori) => lavoratori.size >= CONFERME_PER_RESPONSABILE_NOTO,
-  );
-  if (!ancoraNoto) await ref.set({ verificatoAdmin: false, verificatoDa: null }, { merge: true });
-}
 
 /**
  * C3 · «Non corrisponde al vero».

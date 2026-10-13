@@ -7,7 +7,9 @@
 // nome e il telefono di un responsabile che magari non ha nemmeno risposto. Tenerli lì
 // per sempre sarebbe il contrario di quello che promette l'informativa.
 
+import { getAuth } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { Timestamp } from 'firebase-admin/firestore';
 import { db } from './comune';
@@ -23,6 +25,9 @@ export type EsitoPulizia = {
   scadute: number;
   cancellate: number;
   sbloccate: number;
+  accessiTolti: number;
+  responsabiliTolti: number;
+  paginePubblicheTolte: number;
 };
 
 /**
@@ -32,8 +37,7 @@ export type EsitoPulizia = {
  * una si rompe le altre vanno avanti, e l'errore si rilancia alla fine, così nei log
  * la pulizia risulta fallita e non passa inosservata.
  */
-export async function eseguiPulizia(): Promise<EsitoPulizia> {
-  const adesso = Timestamp.now();
+export async function eseguiPulizia(adesso = Timestamp.now()): Promise<EsitoPulizia> {
   const errori: string[] = [];
 
   async function passata<T>(nome: string, lavoro: () => Promise<T>, seFallisce: T): Promise<T> {
@@ -52,12 +56,121 @@ export async function eseguiPulizia(): Promise<EsitoPulizia> {
   const scadute = await passata('link scaduti', () => chiudiLinkScaduti(adesso), 0);
   const cancellate = await passata('richieste vecchie', () => cancellaRichiesteVecchie(adesso), 0);
   const sbloccate = await passata('stagioni appese', () => sbloccaStagioniAppese(), 0);
+  const responsabiliTolti = await passata('responsabili senza conferme', () => togliResponsabiliSenzaConferme(adesso), 0);
+  const accessiTolti = await passata('accessi che non servono più', () => togliAccessiInutili(adesso), 0);
+  const paginePubblicheTolte = await passata('pagine pubbliche orfane', () => togliPaginePubblicheOrfane(), 0);
 
   console.log(
-    `Pulizia: ${scadute} richieste scadute, ${cancellate} cancellate, ${sbloccate} stagioni sbloccate.`,
+    `Pulizia: ${scadute} richieste scadute, ${cancellate} cancellate, ${sbloccate} stagioni sbloccate, ` +
+      `${responsabiliTolti} responsabili e ${accessiTolti} accessi senza più motivo di restare, ` +
+      `${paginePubblicheTolte} pagine pubbliche orfane.`,
   );
   if (errori.length > 0) throw new Error(`Pulizia incompleta: ${errori.join(', ')}.`);
-  return { scadute, cancellate, sbloccate };
+  return { scadute, cancellate, sbloccate, accessiTolti, responsabiliTolti, paginePubblicheTolte };
+}
+
+function novantaGiorniPrima(adesso: Timestamp): number {
+  return adesso.toMillis() - GIORNI_CONSERVAZIONE * 24 * 60 * 60 * 1000;
+}
+
+async function haConferme(responsabileUid: string): Promise<boolean> {
+  const conferme = await db.collection('conferme').where('responsabileUid', '==', responsabileUid).limit(1).get();
+  return !conferme.empty;
+}
+
+/**
+ * ---- 4 · I responsabili che non hanno più conferme ----------------------
+ * L'informativa promette che il numero di un responsabile se ne va con la richiesta,
+ * dopo 90 giorni. Ma il numero stava anche in `responsabili/{uid}`, e restava per
+ * sempre: anche dopo che la sua conferma era stata revocata, o che il lavoratore aveva
+ * cancellato l'account portandosi via le conferme. Chi non ha più nessuna conferma in
+ * piedi da 90 giorni non ha motivo di restare.
+ */
+async function togliResponsabiliSenzaConferme(adesso: Timestamp): Promise<number> {
+  const limite = novantaGiorniPrima(adesso);
+  const responsabili = await db.collection('responsabili').get();
+  let tolti = 0;
+  for (const r of responsabili.docs) {
+    if (tolti >= MASSIMO_PER_GIRO) break;
+    const ultimaVolta = (r.data().updatedAt as Timestamp | undefined)?.toMillis() ?? 0;
+    if (ultimaVolta > limite) continue;
+    if (await haConferme(r.id)) continue;
+    await r.ref.delete();
+    tolti += 1;
+  }
+  return tolti;
+}
+
+/**
+ * ---- 5 · Gli accessi che non servono più -------------------------------
+ * Chi apre un link di conferma verifica il suo numero, e da lì esiste un accesso con il
+ * suo telefono dentro. Se poi non conferma — numero sbagliato, ci ha ripensato, era il
+ * numero di un altro — quell'accesso restava per sempre, con un telefono che nessuno
+ * aveva motivo di tenere. Lo stesso per chi ha verificato il numero e non ha mai creato il
+ * libretto, insieme alla foto che magari aveva già caricato.
+ *
+ * Si toglie solo chi, da 90 giorni, non entra e non ha niente: nessun libretto, nessuna
+ * conferma data, nessun codice di invito intestato (quello resta suo, e se tornasse
+ * troverebbe il codice bruciato).
+ */
+async function togliAccessiInutili(adesso: Timestamp): Promise<number> {
+  const limite = novantaGiorniPrima(adesso);
+  const auth = getAuth();
+  let tolti = 0;
+  let pagina: string | undefined;
+
+  do {
+    const elenco = await auth.listUsers(1000, pagina);
+    pagina = elenco.pageToken;
+
+    for (const utente of elenco.users) {
+      if (tolti >= MASSIMO_PER_GIRO) return tolti;
+      const ultimoAccesso = Date.parse(utente.metadata.lastSignInTime || utente.metadata.creationTime);
+      if (!(ultimoAccesso < limite)) continue;
+
+      const uid = utente.uid;
+      if ((await db.doc(`workers/${uid}`).get()).exists) continue;
+      if (await haConferme(uid)) continue;
+      const invito = await db.collection('inviti').where('usatoDa', '==', uid).limit(1).get();
+      if (!invito.empty) continue;
+
+      await cancellaFile(`foto/${uid}`);
+      await cancellaFile(`cv/${uid}`);
+      await db.doc(`responsabili/${uid}`).delete();
+      await auth.deleteUser(uid);
+      tolti += 1;
+    }
+  } while (pagina);
+
+  return tolti;
+}
+
+async function cancellaFile(percorso: string): Promise<void> {
+  try {
+    await getStorage().bucket().file(percorso).delete({ ignoreNotFound: true });
+  } catch (errore) {
+    console.warn(`Pulizia: non riesco a cancellare ${percorso}:`, errore);
+  }
+}
+
+/**
+ * ---- 6 · Le pagine pubbliche senza più un lavoratore dietro --------------
+ * La pagina pubblica la scrive un trigger, che gira un istante dopo le scritture. Se una
+ * scrittura arriva mentre un account si sta cancellando, il trigger poteva rimettere in
+ * piedi la pagina subito dopo che `eliminaAccount` l'aveva tolta: nome, foto e magari il
+ * telefono di chi ha chiesto di sparire. Questa passata è la rete sotto quel caso.
+ */
+async function togliPaginePubblicheOrfane(): Promise<number> {
+  const pagine = await db.collection('profiliPubblici').get();
+  let tolte = 0;
+  for (const pagina of pagine.docs) {
+    const uid = (await db.doc(`slugs/${pagina.id}`).get()).data()?.uid;
+    const viva = typeof uid === 'string' && (await db.doc(`workers/${uid}`).get()).exists;
+    if (viva) continue;
+    await pagina.ref.delete();
+    tolte += 1;
+  }
+  return tolte;
 }
 
 async function chiudiLinkScaduti(adesso: Timestamp): Promise<number> {
@@ -97,7 +210,7 @@ async function chiudiLinkScaduti(adesso: Timestamp): Promise<number> {
 
 async function cancellaRichiesteVecchie(adesso: Timestamp): Promise<number> {
   // ---- 2 · Quello che non serve più tenere -------------------------------
-  const limite = Timestamp.fromMillis(adesso.toMillis() - GIORNI_CONSERVAZIONE * 24 * 60 * 60 * 1000);
+  const limite = Timestamp.fromMillis(novantaGiorniPrima(adesso));
   const vecchie = await db
     .collection('richieste')
     .where('createdAt', '<', limite)

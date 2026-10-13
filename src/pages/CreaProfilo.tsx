@@ -3,6 +3,7 @@
 // niente data di nascita, niente indirizzo, niente codice fiscale (§9, minimizzazione).
 
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { BETA_SU_INVITO, NOME_APP } from '../config';
 import { cercaComuni, comunePerId } from '../data/comuni';
@@ -12,7 +13,7 @@ import { registraEvento } from '../lib/eventi';
 import { collegaInvito, invitoGiaCollegato, normalizzaCodice } from '../lib/inviti';
 import { formattaTelefono } from '../lib/telefono';
 import { creaProfilo } from '../lib/worker';
-import { invitoInSospeso, scartaInvitoInSospeso } from './Accesso';
+import { consensiDati, invitoInSospeso, scartaConsensi, scartaInvitoInSospeso } from './Accesso';
 
 const MAX_FOTO_MB = 5;
 
@@ -25,6 +26,11 @@ export default function CreaProfilo() {
   // questa pagina è già comparsa.
   const [chiediInvito, setChiediInvito] = useState(false);
   const [invito, setInvito] = useState('');
+  // Le due spunte di L1. Si chiedono qui solo a chi non è passato da L1 su questo
+  // telefono: i consensi finiscono nel profilo, e devono essere stati dati davvero.
+  const [chiediConsensi, setChiediConsensi] = useState(false);
+  const [maggiorenne, setMaggiorenne] = useState(false);
+  const [informativa, setInformativa] = useState(false);
   const [nome, setNome] = useState('');
   const [cognome, setCognome] = useState('');
   const [ruolo, setRuolo] = useState('');
@@ -76,6 +82,15 @@ export default function CreaProfilo() {
       setErrore('Scegli il tuo comune dall’elenco.');
       return;
     }
+    if (!consensiDati(utente.uid) && !(maggiorenne && informativa)) {
+      setChiediConsensi(true);
+      setErrore(
+        chiediConsensi
+          ? 'Servono tutte e due le spunte per creare il libretto.'
+          : 'Prima di creare il libretto servono le due spunte qui sotto.',
+      );
+      return;
+    }
     let codice = BETA_SU_INVITO ? invitoInSospeso(utente.uid) : null;
     if (BETA_SU_INVITO && codice === null && normalizzaCodice(invito) === '') {
       setChiediInvito(true);
@@ -106,6 +121,7 @@ export default function CreaProfilo() {
         foto,
       });
       scartaInvitoInSospeso();
+      scartaConsensi();
       await registraEvento('registrazione', utente.uid);
       await ricaricaWorker();
     } catch (e) {
@@ -233,6 +249,25 @@ export default function CreaProfilo() {
             />
             <span className="aiuto">È quello che hai scritto per entrare.</span>
           </label>
+        )}
+
+        {chiediConsensi && (
+          <>
+            <label className="casella">
+              <input type="checkbox" checked={maggiorenne} onChange={(e) => setMaggiorenne(e.target.checked)} />
+              <span>Ho almeno 18 anni.</span>
+            </label>
+            <label className="casella">
+              <input type="checkbox" checked={informativa} onChange={(e) => setInformativa(e.target.checked)} />
+              <span>
+                Ho letto l’
+                <Link to="/privacy" target="_blank" rel="noopener">
+                  informativa
+                </Link>{' '}
+                e accetto che {NOME_APP} tratti i miei dati.
+              </span>
+            </label>
+          </>
         )}
 
         {errore && (

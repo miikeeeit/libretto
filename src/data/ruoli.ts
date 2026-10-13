@@ -268,6 +268,26 @@ export function nomeRuolo(id: string): string {
 }
 
 /**
+ * «Confermata dal titolare», «dallo chef», «da un responsabile»: con la preposizione
+ * giusta. Prima si scriveva sempre «dal», e sulle pagine pubbliche si leggeva
+ * «confermata dal chef» e «confermata dal altro».
+ */
+export function confermataDa(ruoloResponsabile: string | null | undefined): string {
+  switch (ruoloResponsabile) {
+    case 'chef':
+      return 'confermata dallo chef';
+    case 'titolare':
+    case 'direttore':
+    case 'responsabile di sala':
+      return `confermata dal ${ruoloResponsabile}`;
+    case 'altro':
+      return 'confermata da un responsabile';
+    default:
+      return 'confermata';
+  }
+}
+
+/**
  * Il nome da mostrare per una competenza salvata.
  * Accetta qualunque stringa, perché nei dati può esserci un id vecchio: in quel caso si
  * mostra l'id invece di far sparire la riga dal profilo di qualcuno.

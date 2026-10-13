@@ -15,6 +15,11 @@ const MESSAGGI: Record<string, string> = {
   'auth/user-disabled': 'Questo numero è sospeso. Scrivi a chi gestisce Libretto.',
   'permission-denied': 'Non hai il permesso per questa operazione.',
   unavailable: 'Non riesco a raggiungere il database. Controlla la connessione.',
+  // Le funzioni del server, quando la rete cade o qualcosa si rompe dalla nostra parte,
+  // rispondono in inglese con una parola sola («internal»): non si mostra così.
+  'functions/internal': 'Qualcosa non è andato dalla nostra parte. Riprova tra poco.',
+  'functions/unavailable': 'Non riesco a raggiungere Libretto. Controlla la connessione e riprova.',
+  'functions/deadline-exceeded': 'Ci sta mettendo troppo. Controlla la connessione e riprova.',
 };
 
 export function messaggioErrore(errore: unknown, fallback = 'Qualcosa non è andato. Riprova.'): string {

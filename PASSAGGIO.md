@@ -62,6 +62,26 @@ righe di `statistiche/conferme` sono troppo belle e non vanno usate per decidere
 che conta è la prossima: un responsabile esterno (Bar Somma) che riceve solo il messaggio
 WhatsApp, senza spiegazioni. Prima, il suo numero va in `responsabiliNoti`.
 
+**Seconda scansione, 13 ottobre.** Chiusi otto punti, nessuno visto dai colleghi:
+- **Consensi:** chi arrivava a creare il libretto senza passare dall'accesso (per esempio
+  dopo aver verificato il numero sulla pagina di conferma) si trovava 18 anni e informativa
+  scritti nel profilo senza averli dati. Ora L2 chiede le due spunte quando manca il segno
+  lasciato da L1, e le regole vogliono l'ora del server sui consensi.
+- **Nome e cognome non si cambiano più dal client.** L'app non lo faceva, ma le regole lo
+  permettevano: un libretto pieno di conferme poteva passare a un altro nome. Un errore di
+  battitura lo corregge Mike dalla console.
+- **Pulizia notturna, tre passate nuove.** Dopo 90 giorni senza accessi si tolgono gli
+  accessi di chi non ha libretto, conferme né invito (chi ha aperto un link e non ha
+  confermato), con la foto se l'aveva caricata; i documenti `responsabili` senza più
+  conferme; le pagine pubbliche senza più un lavoratore dietro. Prima il numero di un
+  responsabile restava per sempre, mentre l'informativa promette che va via con la richiesta.
+- **Una stagione cancellata** si porta via la sua conferma, i conteggi e il link aperto.
+- **La conferma** rilegge la stagione dentro la transazione.
+- **Errori leggibili:** niente più «stato:usata» o «internal» sullo schermo.
+- **«Confermata dallo chef»**, non «dal chef»; «da un responsabile», non «dal altro».
+- **Rete che va e viene:** la pagina pubblica non dice più «non disponibile» per un errore di
+  rete, e il libretto non manda più a crearne uno nuovo: c'è «Riprova».
+
 Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
 Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
 regione una notte storta si misura in centinaia di euro. Se si apre un progetto nuovo, si
@@ -164,8 +184,8 @@ macchina. Usare le equivalenti disponibili e dirlo, invece di annunciare skill n
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # 67 prove sulle regole di sicurezza
-npm run prova:rottura   # 59 casi, chiamando le funzioni a mano
+npm test                # 70 prove sulle regole di sicurezza
+npm run prova:rottura   # 66 casi, chiamando le funzioni a mano
 npm run prova:flusso    # 29 passaggi in browser, tre finestre
 ```
 

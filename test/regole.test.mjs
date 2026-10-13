@@ -59,7 +59,7 @@ function profilo(modifiche = {}) {
     slug: SLUG,
     privacy: { pubblico: true, mostraTelefono: false, mostraInAttesa: false, mostraCv: false },
     cvPath: null,
-    consensi: { maggiorenne: new Date(), informativa: { versione: '1', ts: new Date() } },
+    consensi: { maggiorenne: serverTimestamp(), informativa: { versione: '1', ts: serverTimestamp() } },
     invito: INVITO,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -223,6 +223,15 @@ describe('profilo del lavoratore', () => {
     );
   });
 
+  it('i consensi della creazione portano l’ora del server', async () => {
+    await assertFails(
+      setDoc(
+        doc(comeMario(), 'workers', LAVORATORE),
+        profilo({ consensi: { maggiorenne: new Date('2020-01-01'), informativa: { versione: '1', ts: new Date('2020-01-01') } } }),
+      ),
+    );
+  });
+
   it('non si crea un profilo senza i consensi', async () => {
     // Sono la base giuridica del trattamento (§9): senza, il profilo non esiste.
     const senzaConsensi = profilo();
@@ -307,13 +316,32 @@ describe('profilo già creato', () => {
         consensi: { informativa: { versione: '2', ts: new Date() } },
       }),
     );
-    // Accettare una versione nuova dell'informativa invece si deve poter fare.
+    // Accettare una versione nuova dell'informativa invece si deve poter fare, con l'ora
+    // del server e senza toccare la dichiarazione dei 18 anni.
     await assertSucceeds(
       updateDoc(doc(comeMario(), 'workers', LAVORATORE), {
-        consensi: { maggiorenne: new Date(), informativa: { versione: '2', ts: new Date() } },
+        'consensi.informativa': { versione: '2', ts: serverTimestamp() },
         updatedAt: new Date(),
       }),
     );
+  });
+
+  it("i consensi non si retrodatano: l'ora è quella del server", async () => {
+    await assertFails(
+      updateDoc(doc(comeMario(), 'workers', LAVORATORE), {
+        'consensi.informativa': { versione: '2', ts: new Date('2020-01-01') },
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(comeMario(), 'workers', LAVORATORE), {
+        'consensi.maggiorenne': serverTimestamp(),
+      }),
+    );
+  });
+
+  it('nome e cognome non si cambiano: le conferme sono di quella persona', async () => {
+    await assertFails(updateDoc(doc(comeMario(), 'workers', LAVORATORE), { nome: 'Luca' }));
+    await assertFails(updateDoc(doc(comeMario(), 'workers', LAVORATORE), { cognome: 'Bianchi' }));
   });
 
   it('il profilo non si cancella dal client: ci pensa eliminaAccount', async () => {

@@ -138,12 +138,25 @@ ancora aperte). Le richieste sostituite da un invio nuovo non si contano. Solo n
 nome; dall'app non si legge. Per averlo subito, senza aspettare la notte: Cloud Scheduler →
 il job della pulizia → «Forza esecuzione».
 
+## 5c. Cosa cancella la pulizia di ogni notte
+
+Oltre a chiudere i link scaduti e a cancellare le richieste chiuse dopo 90 giorni, la pulizia
+toglie quello che non ha più motivo di restare, sempre dopo 90 giorni:
+
+- gli **accessi senza libretto**, senza conferme date e senza un codice di invito intestato:
+  di solito un responsabile che ha aperto il link e non ha confermato. Con l'accesso se ne va
+  la foto, se l'aveva caricata;
+- i documenti **`responsabili`** senza più nessuna conferma in piedi;
+- le **pagine pubbliche** senza più un lavoratore dietro (subito, non dopo 90 giorni).
+
+Nel log della pulizia (Cloud Functions → `pulizia` → Log) una riga dice quanti ne ha tolti.
+
 ## 6. Provare che non si rompe
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # le regole di sicurezza: 67 prove, sull'emulatore
-npm run prova:rottura   # i 59 casi di rottura, chiamando le funzioni a mano
+npm test                # le regole di sicurezza: 70 prove, sull'emulatore
+npm run prova:rottura   # i 66 casi di rottura, chiamando le funzioni a mano
 npm run prova:flusso    # i 29 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito
 ```

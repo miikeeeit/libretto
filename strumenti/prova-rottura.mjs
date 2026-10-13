@@ -10,6 +10,7 @@
 //
 //   node strumenti/prova-rottura.mjs
 
+import { createRequire } from 'node:module';
 import { normalizzaTelefono, scriviDocumento } from './emulatore.mjs';
 
 // Il codice della pulizia notturna si importa e si esegue per davvero, contro gli
@@ -17,6 +18,10 @@ import { normalizzaTelefono, scriviDocumento } from './emulatore.mjs';
 process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080';
 process.env.GCLOUD_PROJECT ??= process.env.LIBRETTO_PROGETTO ?? 'libretto-prova';
 const { eseguiPulizia } = await import('../functions/lib/pulizia.js');
+// Lo stesso Timestamp che usa la pulizia, per farla girare «fra 91 giorni».
+const { Timestamp } = createRequire(new URL('../functions/package.json', import.meta.url))(
+  'firebase-admin/firestore',
+);
 
 const PROGETTO = process.env.LIBRETTO_PROGETTO ?? 'libretto-prova';
 const FIRESTORE = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
@@ -108,6 +113,19 @@ async function deveRiuscire(descrizione, promessa) {
   if (esito.ok) ok(descrizione);
   else no(descrizione, esito.errore?.message ?? 'rifiutata');
   return esito;
+}
+
+/** L'accesso con questo uid esiste ancora nell'emulatore Auth? */
+async function esisteAccesso(uid) {
+  const risposta = await fetch(
+    `http://${AUTH}/identitytoolkit.googleapis.com/v1/projects/${PROGETTO}/accounts:lookup`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+      body: JSON.stringify({ localId: [uid] }),
+    },
+  ).then((r) => r.json());
+  return (risposta.users ?? []).length > 0;
 }
 
 async function leggi(percorso) {
@@ -956,6 +974,112 @@ await titolo('Il CV e la pagina pubblica');
     no('un profilo reso privato non è più leggibile', 'la pagina pubblica esiste ancora');
   } else {
     ok('un profilo reso privato non è più leggibile');
+  }
+}
+
+// ---- Una stagione cancellata ------------------------------------------
+await titolo('Una stagione cancellata si porta via la sua conferma');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 960 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'confermata');
+  await creaStagione(mario.uid, 'in-attesa', { dal: { stringValue: '2025-05' }, al: { stringValue: '2025-09' } });
+  const prima = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'confermata', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393489600002' },
+    mario,
+  );
+  const ciro = await entra('348 960 0002');
+  await chiama('confermaStagione', { token: prima.risultato.token, ...CONFERMA_VALIDA }, ciro);
+  const seconda = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'in-attesa', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393489600002' },
+    mario,
+  );
+
+  // Dal libretto non si può, ma le regole lo lasciano fare: è roba sua.
+  await fetch(`${documenti}/workers/${mario.uid}/stagioni/confermata`, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer owner' },
+  });
+  await fetch(`${documenti}/workers/${mario.uid}/stagioni/in-attesa`, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer owner' },
+  });
+  await new Promise((r) => setTimeout(r, 2500));
+
+  const conferme = await fetch(`${documenti}/conferme`, { headers: { Authorization: 'Bearer owner' } }).then((r) =>
+    r.json(),
+  );
+  const responsabile = await leggi(`responsabili/${ciro.uid}`);
+  if ((conferme.documents ?? []).length === 0 && responsabile?.fields?.nConferme?.integerValue === '0') {
+    ok('la conferma di una stagione cancellata se ne va, e il conteggio scende');
+  } else {
+    no(
+      'la conferma di una stagione cancellata se ne va, e il conteggio scende',
+      `conferme: ${(conferme.documents ?? []).length}, nConferme: ${responsabile?.fields?.nConferme?.integerValue}`,
+    );
+  }
+  const link = await leggi(`richieste/${seconda.risultato.token}`);
+  if (link?.fields?.stato?.stringValue === 'revocata') ok('il link di una stagione cancellata si chiude');
+  else no('il link di una stagione cancellata si chiude', `stato: ${link?.fields?.stato?.stringValue}`);
+}
+
+// ---- I numeri che non servono più --------------------------------------
+await titolo('La pulizia dei numeri che non servono più (§9)');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 950 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'sua');
+  const esito = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393489500002' },
+    mario,
+  );
+  const ciro = await entra('348 950 0002');
+  await chiama('confermaStagione', { token: esito.risultato.token, ...CONFERMA_VALIDA }, ciro);
+
+  // Chi ha aperto un link, ha verificato il numero e non ha confermato niente.
+  const passante = await entra('348 950 0003');
+  // Un responsabile la cui conferma non c'è più (revocata, o il lavoratore se n'è andato).
+  const exResponsabile = await entra('348 950 0004');
+  await scriviDocumento('responsabili', exResponsabile.uid, {
+    telefono: { stringValue: exResponsabile.telefono },
+    nConferme: { integerValue: '0' },
+    updatedAt: { timestampValue: new Date().toISOString() },
+  });
+  // Una pagina pubblica rimasta senza nessuno dietro.
+  await scriviDocumento('profiliPubblici', 'fantasma-0001', { nome: { stringValue: 'Fantasma' } });
+
+  // Subito non si tocca niente: i 90 giorni non sono passati.
+  await eseguiPulizia();
+  if ((await esisteAccesso(passante.uid)) && (await esisteAccesso(exResponsabile.uid))) {
+    ok('prima di 90 giorni gli accessi restano');
+  } else {
+    no('prima di 90 giorni gli accessi restano', 'qualcuno è stato tolto troppo presto');
+  }
+
+  await eseguiPulizia(Timestamp.fromMillis(Date.now() + 91 * 24 * 60 * 60 * 1000));
+
+  if (!(await esisteAccesso(passante.uid)) && !(await esisteAccesso(exResponsabile.uid))) {
+    ok('dopo 90 giorni si tolgono gli accessi di chi non ha libretto né conferme');
+  } else {
+    no('dopo 90 giorni si tolgono gli accessi di chi non ha libretto né conferme', 'sono ancora lì');
+  }
+  if (await leggi(`responsabili/${exResponsabile.uid}`)) {
+    no('il numero di un responsabile senza più conferme se ne va', 'il documento è ancora lì');
+  } else {
+    ok('il numero di un responsabile senza più conferme se ne va');
+  }
+  if ((await esisteAccesso(mario.uid)) && (await esisteAccesso(ciro.uid)) && (await leggi(`responsabili/${ciro.uid}`))) {
+    ok('restano il lavoratore e il responsabile che ha una conferma in piedi');
+  } else {
+    no('restano il lavoratore e il responsabile che ha una conferma in piedi', 'uno dei due è stato tolto');
+  }
+  if (await leggi('profiliPubblici/fantasma-0001')) {
+    no('una pagina pubblica senza lavoratore dietro si toglie', 'è ancora leggibile');
+  } else {
+    ok('una pagina pubblica senza lavoratore dietro si toglie');
   }
 }
 

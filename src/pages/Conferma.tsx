@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useVerificaTelefono } from '../auth/useVerificaTelefono';
 import { NOME_APP } from '../config';
-import { nomeCompetenza, nomeRuolo } from '../data/ruoli';
+import { confermataDa, nomeCompetenza, nomeRuolo } from '../data/ruoli';
 import { messaggioErrore } from '../lib/errori';
 import { registraEvento } from '../lib/eventi';
 import { auth } from '../lib/firebase';
@@ -318,8 +318,8 @@ export default function Conferma() {
             <>
               <h1>Grazie, l’abbiamo segnato</h1>
               <p>
-                Questa stagione non risulta più confermata e {aperta.nomeDiBattesimo} è stato
-                avvisato. Non comparirà niente sul suo profilo.
+                Questa stagione non risulta più confermata, e {aperta.nomeDiBattesimo} lo vedrà nel
+                suo libretto. Sul suo profilo non comparirà niente.
               </p>
             </>
           ) : (
@@ -328,8 +328,7 @@ export default function Conferma() {
               <p>
                 {esito?.nome} ora ha questa stagione confermata
                 {esito && esito.nCompetenze > 0 ? `, con ${esito.nCompetenze} competenze` : ''}. Il
-                tuo nome non compare da nessuna parte: sul suo profilo si legge «confermata dal{' '}
-                {ruolo}».
+                tuo nome non compare da nessuna parte: sul suo profilo si legge «{confermataDa(ruolo)}».
               </p>
 
               <hr className="separatore" />
