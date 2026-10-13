@@ -1,5 +1,6 @@
 /* Un solo foglio di stile: l'app ha sei schermate, non serve altro.
-   Pensato prima per il telefono, perché è da lì che la gente lo aprirà. */
+   Pensato prima per il telefono, perché è da lì che la gente lo aprirà.
+   Solo chiaro: il tema scuro è stato tolto il 2026-10-13 (DECISIONI.md). */
 
 :root {
   --verde: #1a6b4f;
@@ -682,28 +683,4 @@ code {
   font-size: 0.95rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --verde: #4bbd91;
-    --verde-scuro: #3da77e;
-    --verde-chiaro: #17302a;
-    --inchiostro: #e9efec;
-    --inchiostro-tenue: #9aa8a3;
-    --bordo: #2c3633;
-    --sfondo: #121715;
-    --scheda: #1a201e;
-    --rosso: #ff9c96;
-    --ombra: none;
-  }
-
-  .bottone--principale {
-    color: #0d1411;
-  }
-
-  .avviso-bozza {
-    background: #2e2611;
-    border-color: #52451c;
-  }
 }

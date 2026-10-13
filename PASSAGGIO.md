@@ -62,7 +62,9 @@ secondo collega è arrivato in fondo senza intoppi. Il lato del responsabile **n
 provato**: finora ha confermato sempre Mike, che Libretto lo conosce. Per questo le prime
 righe di `statistiche/conferme` sono troppo belle e non vanno usate per decidere. La prova
 che conta è la prossima: un responsabile esterno (Bar Somma) che riceve solo il messaggio
-WhatsApp, senza spiegazioni. Prima, il suo numero va in `responsabiliNoti`.
+WhatsApp, senza spiegazioni. Prima, il suo numero va in `responsabiliNoti`. Subito dopo
+quella prova si porta il blu nel codice (vedi «Il design»), perché arrivi prima
+dell'apertura e dei post su Instagram ([`CAMPAGNA_INSTAGRAM.md`](CAMPAGNA_INSTAGRAM.md)).
 
 Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
 Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
@@ -198,20 +200,19 @@ vuol dire confermato da un'altra persona, azzurro vuol dire dichiarato**, per le
 per le competenze. Le altre due pagine del canvas, «Stile Apple» e «Timbro e penna», sono
 proposte scartate, tenute per confronto.
 
-Deciso anche: stagioni in griglia, niente numeri sotto la frase della pagina pubblica
-(vedi `DECISIONI.md`). Resta aperto il tema scuro: l'app di oggi ce l'ha, le tavole no.
+Deciso anche: stagioni in griglia, niente numeri sotto la frase della pagina pubblica, e
+niente tema scuro, tolto dal codice il 13 ottobre (vedi `DECISIONI.md`).
 
 **Entra nel codice prima dell'apertura** (decisione del 13 ottobre, che cambia quella del 30
 settembre): i post di Instagram nascono blu, e chi arriva dal link deve trovare la stessa app.
 Il motivo per cui si aspettava resta buono, cioè guardare prima dove la gente si blocca. Per
-questo conviene cominciare dopo la prova del responsabile esterno (Bar Somma): le schermate
-del responsabile sono quelle che quella prova può ancora cambiare.
+questo **si comincia dopo la prova del responsabile esterno** (Bar Somma), come ha deciso
+Mike: le schermate del responsabile sono quelle che quella prova può ancora cambiare.
 
 Come, quando si comincia:
 
-- **Prima, una decisione di Mike: il tema scuro.** L'app di oggi ce l'ha, le tavole no.
 - **I colori stanno già in variabili**, in cima a `src/stili.css` (`--verde`, `--verde-scuro`,
-  `--verde-chiaro`, e il blocco del tema scuro in fondo): si cambiano lì, poi `theme-color` in
+  `--verde-chiaro` e le altre): si cambiano lì, poi `theme-color` in
   `index.html` e `theme_color` in `vite.config.ts`. I valori sono sulla tavola «Gli elementi»
   del canvas: navy `#16407f`, azzurro `#eaf1fb`, testo `#13213a`, secondario `#5d6b82`, fondo
   `#f5f7fb`, errore `#b3261e`, avviso `#b45309`.

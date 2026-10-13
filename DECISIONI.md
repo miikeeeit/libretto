@@ -35,6 +35,8 @@ Le decisioni che spettano a Mike, con la data in cui le ha prese. I punti di con
 | 2026-10-13 | Campagna · La faccia di Mike | **Non per ora: prima vuole vedere come va.** L'account Instagram parla come Libretto, i reel si girano senza volti, e il reel «Perché l'ho fatto» aspetta. Si riprende a gennaio, con i numeri di dicembre. |
 | 2026-10-13 | Campagna · Quando aprire l'account | **Entro dicembre, al più tardi.** La proposta del piano resta tre settimane prima dell'apertura; se PC5 slitta, l'account apre lo stesso, con post che non chiedono di entrare. |
 | 2026-10-13 | Design · Quando entra nel codice | **Prima dell'apertura**, non più dopo la beta: cambia la decisione del 30 settembre. I post di Instagram nascono blu, e chi arriva dal link deve trovare la stessa app. Prima di scrivere codice resta da decidere il tema scuro. Come ci si arriva: `PASSAGGIO.md`, «Il design». |
+| 2026-10-13 | Design · Tema scuro | **Tolto: l'app è solo chiara.** La regola «pieno = confermato, azzurro = dichiarato» è disegnata sul chiaro, e al sole il chiaro si legge meglio. Tolto subito, così la prova di Somma si fa sull'aspetto che resterà. `index.html` chiede ai telefoni di non scurire la pagina da soli (`color-scheme: only light`). Si potrà rimettere, ridisegnato. |
+| 2026-10-13 | Design · Quando si comincia | **Dopo la prova di Somma**, il responsabile esterno: le schermate del responsabile sono quelle che la prova può ancora cambiare. |
 | | PC5 · Informativa rivista da professionista | |
 
 ## Cose da ricordare a Mike
