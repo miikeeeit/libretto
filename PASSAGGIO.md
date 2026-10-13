@@ -54,6 +54,14 @@ guardare: chi entra (`usatoDa` sugli `inviti`), dove si blocca (quello che i col
 raccontano a Mike), quanti responsabili confermano entro 7 giorni (`statistiche/conferme`).
 Prima di correggere qualcosa, si ascolta dove si sono fermati.
 
+**A che punto è, 13 ottobre.** Il lato del lavoratore regge: dopo le correzioni del primo
+giro (reCAPTCHA, `usatoDa`, eccezione della §8.2, pagina del link per chi l'ha mandato) il
+secondo collega è arrivato in fondo senza intoppi. Il lato del responsabile **non è ancora
+provato**: finora ha confermato sempre Mike, che Libretto lo conosce. Per questo le prime
+righe di `statistiche/conferme` sono troppo belle e non vanno usate per decidere. La prova
+che conta è la prossima: un responsabile esterno (Bar Somma) che riceve solo il messaggio
+WhatsApp, senza spiegazioni. Prima, il suo numero va in `responsabiliNoti`.
+
 Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
 Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
 regione una notte storta si misura in centinaia di euro. Se si apre un progetto nuovo, si
