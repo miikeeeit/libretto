@@ -89,7 +89,7 @@ Legato a due cose: il giorno A e la stagione. Le date precise dipendono da PC5.
 
 | Quando | Cosa | Invito a entrare |
 |---|---|---|
-| Da ora ad A − 3 settimane | Le decisioni in fondo. Nome e profilo. Girare il materiale: i reel e le foto. | no |
+| Da ora ad A − 3 settimane | Il blu entra nell'app (decisione 5). Nome e profilo. Girare il materiale: i reel e le foto. | no |
 | Da A − 3 settimane ad A | **Riscaldamento.** Tre post a settimana sul problema. Storie con domande. | no |
 | Settimana di A | **Apertura.** Un post al giorno per cinque giorni, storie ogni giorno, e un DM a chi aveva chiesto. | sì |
 | A + 6 settimane | **Dopo l'apertura.** Tre post a settimana. Le prime conferme vere, se chi le ha ricevute è d'accordo. | sì |
@@ -116,7 +116,7 @@ settembre è il centro della campagna.
   sono tuoi». Chi apre il profilo da un link capisce tutto da quei tre.
 - **Storie in evidenza**: Come funziona · Per chi conferma · Domande · I dati.
 - **Le grafiche**: la direzione «Blu» del canvas (navy pieno, schede azzurrine, Poppins, angoli
-  tondi). Vedi la decisione 5: oggi l'app è ancora verde.
+  tondi). Oggi l'app è ancora verde; il blu ci arriva prima di A (decisione 5).
 
 ## I quattro filoni
 
@@ -324,8 +324,11 @@ vanno in [`DECISIONI.md`](DECISIONI.md) con la data.
 
 1. **Nome e handle.** *Deciso il 13 ottobre: «Libretto», sempre con lo slogan (vedi
    `DECISIONI.md` e la regola 8).* Resta da controllare quale handle è libero.
-2. **Quando aprire l'account.** Tre settimane prima di A, con il riscaldamento senza invito a
-   entrare (la proposta di questo piano), oppure direttamente ad A.
+2. **Quando aprire l'account.** *Deciso il 13 ottobre: entro dicembre, al più tardi.* Se A
+   arriva a fine novembre come previsto, l'account apre tre settimane prima, a inizio novembre.
+   Se PC5 slitta, l'account apre lo stesso entro dicembre: il riscaldamento dura di più, e
+   «Si apre a fine novembre» sulla slide 6 e sul reel diventa la data vera. Sul canvas si
+   riscrive direttamente.
 3. **La tua faccia.** *Deciso il 13 ottobre: non per ora, prima si vede come va.* Il reel C
    aspetta; al suo posto, fra i primi nove, il carosello «Cosa vede chi ti assume». I reel si
    girano senza volti. Si riparla a gennaio, con i numeri di dicembre.
@@ -333,9 +336,9 @@ vanno in [`DECISIONI.md`](DECISIONI.md) con la data.
    Mike mette circa 120 € l'anno per tutto Libretto (`DECISIONI.md`), e gli SMS ne prendono
    già quasi tutti. Una prova di una settimana a 5 € al giorno ne brucerebbe un terzo, più gli
    SMS delle persone che porta. Si riapre se il budget cresce.
-5. **Il blu nell'app.** Le grafiche dei post nascono «Blu», l'app oggi è verde e il blu entra
-   nel codice dopo la beta (24 e 30 settembre). Se ad A l'app è ancora verde, il reel B mostra
-   un'app diversa dai post. O il blu arriva prima di A, o si gira il reel B dopo.
+5. **Il blu nell'app.** *Deciso il 13 ottobre: arriva prima di A.* Così il reel B si gira
+   sull'app blu, e chi arriva dal link in bio trova la stessa cosa che ha visto nei post. Come
+   ci si arriva: `PASSAGGIO.md`, «Il design».
 6. **«Quanto costa».** *Deciso il 13 ottobre: Libretto guadagnerà sui datori, mai sui
    lavoratori, e solo nella V2.* In pubblico si dice: «Per chi lavora, niente. E a chi conferma
    una stagione non costa niente.» Non si dice niente su cosa pagheranno i datori finché non è

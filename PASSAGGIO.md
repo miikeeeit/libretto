@@ -201,9 +201,33 @@ proposte scartate, tenute per confronto.
 Deciso anche: stagioni in griglia, niente numeri sotto la frase della pagina pubblica
 (vedi `DECISIONI.md`). Resta aperto il tema scuro: l'app di oggi ce l'ha, le tavole no.
 
-Non si porta nel codice prima della beta: prima si guarda dove la gente si blocca. La
-gerarchia della pagina pubblica è già sistemata (la prima cosa che si legge nomina chi ha
-confermato); il resto è in `DOPO.md`.
+**Entra nel codice prima dell'apertura** (decisione del 13 ottobre, che cambia quella del 30
+settembre): i post di Instagram nascono blu, e chi arriva dal link deve trovare la stessa app.
+Il motivo per cui si aspettava resta buono, cioè guardare prima dove la gente si blocca. Per
+questo conviene cominciare dopo la prova del responsabile esterno (Bar Somma): le schermate
+del responsabile sono quelle che quella prova può ancora cambiare.
+
+Come, quando si comincia:
+
+- **Prima, una decisione di Mike: il tema scuro.** L'app di oggi ce l'ha, le tavole no.
+- **I colori stanno già in variabili**, in cima a `src/stili.css` (`--verde`, `--verde-scuro`,
+  `--verde-chiaro`, e il blocco del tema scuro in fondo): si cambiano lì, poi `theme-color` in
+  `index.html` e `theme_color` in `vite.config.ts`. I valori sono sulla tavola «Gli elementi»
+  del canvas: navy `#16407f`, azzurro `#eaf1fb`, testo `#13213a`, secondario `#5d6b82`, fondo
+  `#f5f7fb`, errore `#b3261e`, avviso `#b45309`.
+- **Poppins si serve dal sito, non da Google Fonts.** Caricata dai server di Google, manda a
+  Google l'indirizzo IP di chi apre la pagina, e la §9 promette niente terze parti. Dai file
+  in `public/` è anche una connessione in meno con la rete di agosto.
+- **Le icone dell'app** (`public/icona*.svg` e i PNG) sono ancora verdi: si rifanno col
+  sigillo.
+- **Schermata per schermata, dalle tavole `Blu-*` del canvas**, che hanno già i testi veri.
+  La barra in basso col bottone centrale e le stagioni in griglia sono le due cose che cambiano
+  la struttura delle pagine, non solo il colore.
+- **Le tre prove devono restare verdi**, e `npm run prova:flusso` con `LIBRETTO_SCHERMATE`
+  dà le schermate da mettere accanto alle tavole.
+
+La gerarchia della pagina pubblica è già sistemata (la prima cosa che si legge nomina chi ha
+confermato).
 
 ## Se questa sessione è chiusa
 
