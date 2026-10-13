@@ -4,6 +4,9 @@ Bozza del 13 ottobre 2026. Non è codice e non tocca l'app: è il piano per far 
 Libretto su Instagram, scritto dentro i vincoli che il progetto ha già. Le decisioni che
 spettano a Mike sono in fondo, e finché non le prende il piano resta una bozza.
 
+I primi tre post disegnati in blu, a grandezza vera (1080 × 1350 e 1080 × 1920), sono sul
+canvas *Libretto — Instagram*: <https://claude.ai/artifact/PnkZUcE7BbsNFKjpgkgt4h>.
+
 ---
 
 ## Prima di tutto: non portare nessuno davanti a una porta chiusa
@@ -76,6 +79,9 @@ nell'app, perché un post si scrive in fretta.
    banner dei cookie e un'informativa nuova. Si misura con quello che c'è già (più sotto).
 7. **Il tono è quello dell'app**: da collega a collega, frasi corte, mai «utente», mai
    «candidato».
+8. **«Libretto» non compare mai da solo** (deciso il 13 ottobre). Da solo si confonde con il
+   libretto sanitario, che chi lavora in ristorazione conosce bene. In ogni grafica il nome sta
+   col sigillo e «stagioni confermate»; lo slogan intero almeno sulla prima e sull'ultima.
 
 ## Il calendario
 
@@ -97,8 +103,11 @@ settembre è il centro della campagna.
 
 ## Il profilo
 
-- **Nome e handle**: dipendono dal nome definitivo (vedi le decisioni). Un handle con dei
-  follower costa caro da cambiare.
+- **Nome del profilo**: «Libretto · stagioni confermate». È un campo diverso dall'handle, e
+  anche lui si trova nella ricerca: chi scrive «stagioni» o «libretto» lo trova già spiegato.
+- **Handle**: «libretto» più una parola, così nessuno pensa al libretto sanitario. Da
+  controllare se sono liberi, in quest'ordine: `@libretto.stagioni`, `@librettostagioni`,
+  `@libretto.latina`. Un handle con dei follower costa caro da cambiare.
 - **Bio**: «Le tue stagioni, confermate da chi ti ha visto lavorare. Ristorazione e ospitalità,
   provincia di Latina.» Sotto, fino ad A: «Si apre a fine novembre». Da A: il link al sito.
 - **Link**: l'indirizzo del sito, dritto. Niente pagine di raccolta link in mezzo, che sono un
@@ -133,9 +142,11 @@ escono nel riscaldamento e non chiedono di entrare; dal quarto si è al giorno A
 1. «Chiedi pure al titolare.» — sotto, piccolo: «L'abbiamo detto tutti, a un colloquio.»
 2. «Poi il titolare non risponde. Ha cambiato numero. Non si ricorda come ti chiami.»
 3. «Oppure chi ti assume non ha tempo di chiamarlo.»
-4. «Quattro stagioni, e niente in mano.»
-5. «Per questo c'è Libretto.»
-6. «Si apre a fine novembre.» *(da A: «Ora si entra. Link in bio.»)*
+4. «Quattro stagioni, e niente in mano.» — quattro stagioni azzurre, «Solo dichiarata».
+5. «Per questo c'è Libretto.» e lo slogan — le stesse quattro, piene, ognuna col ruolo di chi
+   l'ha confermata.
+6. Il sigillo, «Libretto», lo slogan e «Si apre a fine novembre.» *(da A: «Ora si entra. Link
+   in bio.»)*
 
 Didascalia: «Quante stagioni hai fatto? E quante te ne crede chi non ti conosce?»
 
@@ -288,9 +299,8 @@ in più, è capire perché.
 Come per i punti di controllo: finché non c'è la risposta, il piano resta bozza. Le risposte
 vanno in [`DECISIONI.md`](DECISIONI.md) con la data.
 
-1. **Nome e handle.** «Libretto» è provvisorio dal 21 settembre (PC1). Un account Instagram
-   con dei follower è il posto in cui un nome si fissa, quindi si decide prima di aprirlo, e
-   prima si controlla che l'handle sia libero.
+1. **Nome e handle.** *Deciso il 13 ottobre: «Libretto», sempre con lo slogan (vedi
+   `DECISIONI.md` e la regola 8).* Resta da controllare quale handle è libero.
 2. **Quando aprire l'account.** Tre settimane prima di A, con il riscaldamento senza invito a
    entrare (la proposta di questo piano), oppure direttamente ad A.
 3. **La tua faccia.** Il copione C funziona solo se ci sei tu. Senza, il filone «problema» si

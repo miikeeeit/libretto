@@ -1,6 +1,6 @@
 // Nome, testi e costanti di prodotto in un posto solo.
-// PC1 (2026-09-21): "Libretto" è provvisorio, il dominio non è deciso.
-// Quando Mike sceglie il nome definitivo (settimana 5) si cambia qui e basta.
+// PC1: "Libretto" è deciso il 2026-10-13, e non compare mai senza il CLAIM: da solo
+// si confonde con il libretto sanitario. Il dominio non è ancora deciso.
 
 export const NOME_APP = 'Libretto';
 export const CLAIM = 'Le tue stagioni, confermate da chi ti ha visto lavorare.';

@@ -29,6 +29,7 @@ Le decisioni che spettano a Mike, con la data in cui le ha prese. I punti di con
 | 2026-10-05 | Post-V1 · Elenco ex collaboratori | **Si compare solo con «Fatti trovare» acceso**, e solo per i datori che il lavoratore non ha escluso. Niente consenso al contrario. Quindi l'elenco **non mostra chi non è disponibile** (chiude la seconda domanda aperta di `SPEC_POST_V1.md` §4). |
 | 2026-10-05 | Post-V1 · Uno o due interruttori | **Due, come deciso il 2 ottobre.** «Disponibile per la stagione» resta il badge di oggi; per comparire nelle ricerche serve «Fatti trovare dai datori», col suo consenso. Vale anche per `SPEC_POST_V1.md` §3, che parla di un solo stato. |
 | 2026-10-07 | §8.2 · Colleghi che si confermano | **La regola resta**: chi risulta lavoratore nella stessa struttura e nello stesso periodo non può confermare. **Eccezione: i numeri in `responsabiliNoti`**, che Mike controlla da solo. Nata al primo giro vero: un collega ha chiesto la conferma a Mike, che era il suo responsabile ma è anche lui registrato come lavoratore. Si scartano per ora le eccezioni basate sul ruolo dichiarato («Responsabile»), che due colleghi d'accordo potrebbero mettersi apposta. Da rivedere con i numeri della beta. |
+| 2026-10-13 | PC1 · Nome | **«Libretto» resta, ma non compare mai da solo**: sempre con lo slogan «Le tue stagioni, confermate da chi ti ha visto lavorare.» o almeno con «stagioni confermate». Da solo si confonde con il libretto sanitario (proprio nella ristorazione) e con il Libretto Famiglia dell'INPS. Valutati e scartati Visto, Spunta, Gavetta e Timbro. Su Instagram: nome del profilo «Libretto · stagioni confermate» e un handle con una parola in più, da verificare. Come marchio è debole perché descrittivo: prima di spenderci, una ricerca all'UIBM. Il dominio resta da decidere. |
 | | PC5 · Informativa rivista da professionista | |
 
 ## Cose da ricordare a Mike
@@ -37,6 +38,6 @@ Le decisioni che spettano a Mike, con la data in cui le ha prese. I punti di con
 
 - **Settimana 1**: impostare l'avviso di budget su Blaze prima di provare l'accesso con un telefono vero.
 - **Settimana 2**: gli id delle competenze si possono ancora cambiare senza perdere niente. Dopo le prime conferme vere, no.
-- **Settimana 5**: nome definitivo e dominio.
+- **Settimana 5**: nome definitivo e dominio. *Il nome è deciso il 13 ottobre; manca il dominio.*
 - **Prima della beta (settimana 6)**: caricare in `responsabiliNoti` i numeri di Bar Somma e del datore di lavoro, dalla console Firebase (istruzioni nel README).
 - **Settimana 5 (PC5)**: informativa privacy rivista da un professionista, e avviso di budget ancora attivo.
