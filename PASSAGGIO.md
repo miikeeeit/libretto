@@ -82,6 +82,11 @@ WhatsApp, senza spiegazioni. Prima, il suo numero va in `responsabiliNoti`.
 - **Rete che va e viene:** la pagina pubblica non dice più «non disponibile» per un errore di
   rete, e il libretto non manda più a crearne uno nuovo: c'è «Riprova».
 
+Online lo stesso giorno (commit `38fc315`). Mike ha forzato la pulizia da Cloud Scheduler
+(`firebase-schedule-pulizia-europe-west8`) e nel log c'è la riga «Pulizia: …» con le passate
+nuove: i permessi per gli accessi ci sono. Il progetto sul Mac ora sta in
+`~/Documents/PROJECT_MIKE/libretto/libretto`.
+
 Il 30 settembre Mike ha messo anche l'avviso di budget su Blaze e gli SMS limitati alla sola
 Italia: da quando l'accesso col telefono è attivo ogni SMS costa, e senza il limite di
 regione una notte storta si misura in centinaia di euro. Se si apre un progetto nuovo, si
