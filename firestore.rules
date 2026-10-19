@@ -259,11 +259,19 @@ service cloud.firestore {
         && request.resource.data.nome is string
         && request.resource.data.nome.size() >= 2
         && request.resource.data.nome.size() <= 120
+        // Si leggono senza essere collegati: ogni campo ha un limite, altrimenti era spazio
+        // gratis servito a tutti (19/10). `join` fallisce se una parola non è testo.
         && request.resource.data.nomeNormalizzato is string
+        && request.resource.data.nomeNormalizzato.size() <= 120
         && request.resource.data.parole is list
         && request.resource.data.parole.size() <= 12
+        && request.resource.data.parole.join(' ').size() <= 120
         && request.resource.data.comune is string
         && request.resource.data.comune.size() <= 60
+        && request.resource.data.provincia is string
+        && request.resource.data.provincia.size() <= 4
+        && request.resource.data.geohash is string
+        && request.resource.data.geohash.size() <= 12
         && request.resource.data.nConferme == 0
         && request.resource.data.unitaA == null
         && request.resource.data.creataDa == request.auth.uid;

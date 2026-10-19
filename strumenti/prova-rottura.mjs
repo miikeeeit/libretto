@@ -15,9 +15,20 @@ import { normalizzaTelefono, scriviDocumento } from './emulatore.mjs';
 
 // Il codice della pulizia notturna si importa e si esegue per davvero, contro gli
 // emulatori. Vuole le funzioni compilate: `npm --prefix functions run build`.
+//
+// Tutti e tre gli emulatori che la pulizia tocca, non solo Firestore: senza le altre due
+// righe gli accessi e i file andavano ai servizi veri di Google, con le credenziali che
+// il computer ha in tasca. Su un Mac con `gcloud` configurato la pulizia falliva a metà
+// («No Firebase project was found») e la prova si fermava lì (2026-10-19).
 process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080';
+process.env.FIREBASE_AUTH_EMULATOR_HOST ??= '127.0.0.1:9099';
+process.env.FIREBASE_STORAGE_EMULATOR_HOST ??= '127.0.0.1:9199';
 process.env.GCLOUD_PROJECT ??= process.env.LIBRETTO_PROGETTO ?? 'libretto-prova';
 const { eseguiPulizia } = await import('../functions/lib/pulizia.js');
+// Anche le chiamate che devono partire nello stesso istante si eseguono qui dentro:
+// l'emulatore delle funzioni le mette in fila una dopo l'altra, mentre online girano
+// davvero insieme, e una gara fra due chiamate lì non si vedrebbe mai.
+const { confermaStagione, segnalaStagione } = await import('../functions/lib/conferme.js');
 // Lo stesso Timestamp che usa la pulizia, per farla girare «fra 91 giorni».
 const { Timestamp } = createRequire(new URL('../functions/package.json', import.meta.url))(
   'firebase-admin/firestore',
@@ -99,6 +110,23 @@ async function chiama(nome, dati, chi = null) {
   });
   const corpo = await risposta.json().catch(() => ({}));
   return { ok: risposta.ok && !corpo.error, risultato: corpo.result, errore: corpo.error };
+}
+
+/**
+ * Come `chiama`, ma dentro questo processo, per due chiamate che devono partire davvero
+ * insieme (vedi sopra). Chi chiama arriva con il suo uid e il telefono verificato, come
+ * glieli darebbe Firebase.
+ */
+async function chiamaInsieme(funzione, dati, chi) {
+  try {
+    const risultato = await funzione.run({
+      data: dati,
+      auth: { uid: chi.uid, token: { phone_number: chi.telefono } },
+    });
+    return { ok: true, risultato };
+  } catch (errore) {
+    return { ok: false, errore: { message: errore?.message ?? String(errore) } };
+  }
 }
 
 async function deveFallire(descrizione, promessa) {
@@ -850,6 +878,73 @@ await titolo('«Non ha mai lavorato qui», due volte');
   const rimaste = await leggi('segnalazioni');
   if ((rimaste?.documents ?? []).length === 0) ok('eliminando l’account spariscono anche le segnalazioni');
   else no('eliminando l’account spariscono anche le segnalazioni', `${rimaste.documents.length} rimaste`);
+}
+
+// ---- Lo stesso link usato due volte nello stesso istante ----------------
+// Un doppio tap, una rete che va e viene, o un client scritto a mano che manda la stessa
+// chiamata due volte insieme. La §8.5 vuole due segnalazioni per sospendere: da un link
+// solo deve uscirne una, altrimenti un responsabile da solo sospende un libretto.
+await titolo('Lo stesso link usato due volte nello stesso istante');
+// Trovato il 2026-10-19: `segnalaStagione` leggeva la richiesta fuori da una transazione,
+// e tre chiamate insieme scrivevano tre segnalazioni (rossa quattro volte su cinque).
+// Corretto la sera stessa rileggendo la richiesta dentro una transazione, come la
+// conferma e la revoca. Da allora la prova gira sempre.
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 710 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'sua');
+  const esito = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393487100002' },
+    mario,
+  );
+  const ciro = await entra('348 710 0002');
+  const token = esito.risultato.token;
+
+  // Tre insieme e non due: con due, a volte una finisce prima che l'altra parta.
+  await Promise.all(
+    [1, 2, 3].map(() => chiamaInsieme(segnalaStagione, { token, motivo: 'mai_lavorato' }, ciro)),
+  );
+  const segnalazioni = (await leggi('segnalazioni'))?.documents ?? [];
+  if (segnalazioni.length === 1) ok('tre «mai lavorato qui» insieme dallo stesso link fanno una segnalazione');
+  else no('tre «mai lavorato qui» insieme dallo stesso link fanno una segnalazione', `${segnalazioni.length} segnalazioni`);
+  if (await leggi(`sospensioni/${mario.uid}`)) {
+    no('un link solo non sospende il libretto', 'il libretto è sospeso');
+  } else {
+    ok('un link solo non sospende il libretto');
+  }
+
+  // Conferma e «non corrisponde» insieme sullo stesso link: vince una delle due, e la
+  // stagione resta coerente con quella che ha vinto. Un lavoratore nuovo, perché quello
+  // di sopra, se la prova è rossa, è sospeso e non manda più richieste.
+  const lucia = await preparaLavoratore('347 710 0003', 'Lucia', 'inv-2');
+  await creaStagione(lucia.uid, 'altra', { strutturaId: { stringValue: 'struttura-2' } });
+  const seconda = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'altra', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393487100002' },
+    lucia,
+  );
+  const [conferma, segnala] = await Promise.all([
+    chiamaInsieme(confermaStagione, { token: seconda.risultato.token, ...CONFERMA_VALIDA }, ciro),
+    chiamaInsieme(segnalaStagione, { token: seconda.risultato.token, motivo: 'dati_sbagliati' }, ciro),
+  ]);
+  const altra = (await leggi(`workers/${lucia.uid}/stagioni/altra`))?.fields ?? {};
+  const conferme = ((await leggi('conferme'))?.documents ?? []).filter(
+    (d) => d.fields?.stagioneId?.stringValue === 'altra',
+  );
+  const coerente =
+    conferma.ok !== segnala.ok &&
+    (conferma.ok
+      ? altra.stato?.stringValue === 'confermata' && conferme.length === 1
+      : altra.stato?.stringValue === 'non_confermata' && conferme.length === 0);
+  if (coerente) ok('conferma e «non corrisponde» insieme: ne passa una sola, e la stagione le dà ragione');
+  else {
+    no(
+      'conferma e «non corrisponde» insieme: ne passa una sola, e la stagione le dà ragione',
+      `conferma ${conferma.ok ? 'passata' : 'rifiutata'}, segnalazione ${segnala.ok ? 'passata' : 'rifiutata'}, ` +
+        `stagione «${altra.stato?.stringValue}», ${conferme.length} conferme`,
+    );
+  }
 }
 
 // ---- Revoca -------------------------------------------------------------

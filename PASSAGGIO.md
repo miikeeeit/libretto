@@ -187,10 +187,15 @@ macchina. Usare le equivalenti disponibili e dirlo, invece di annunciare skill n
 
 ## Le prove, e cosa guarda ognuna
 
+Al 20 ottobre, tutte verdi. Gli emulatori vogliono Java: sul Mac c'è quello di Android
+Studio (`export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`),
+e vanno avviati con `--project libretto-prova`: `npm run emulatori` prenderebbe il
+progetto vero da `.firebaserc`.
+
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # 70 prove sulle regole di sicurezza
-npm run prova:rottura   # 66 casi, chiamando le funzioni a mano
+npm test                # 83 prove sulle regole di sicurezza (74 Firestore + 9 Storage)
+npm run prova:rottura   # 69 casi, chiamando le funzioni a mano (anche le gare)
 npm run prova:flusso    # 29 passaggi in browser, tre finestre
 ```
 

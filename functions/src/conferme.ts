@@ -310,50 +310,59 @@ export const segnalaStagione = onCall(async (chiamata) => {
 
   const { ref: richiestaRef, richiesta } = await richiestaPerChiamante(token, telefono, 'aperta');
   const stagioneRef = db.doc(`workers/${richiesta.workerUid}/stagioni/${richiesta.stagioneId}`);
-  const stagioneSnap = await stagioneRef.get();
-  const stagione = stagioneSnap.data() as Stagione | undefined;
 
-  // Gli stessi due controlli della conferma, che qui mancavano: con un link vecchio
-  // ancora aperto si poteva far diventare «non confermata» una stagione che aspettava
-  // un altro responsabile, e appioppare al lavoratore una segnalazione delle due che
-  // sospendono il libretto.
-  const chiesto = richiesta.stagioneAlMomento;
-  const cambiata =
-    stagione !== undefined &&
-    (stagione.richiestaId !== token ||
-      stagione.stato !== 'in_attesa' ||
-      chiesto === undefined ||
-      chiesto.strutturaId !== stagione.strutturaId ||
-      chiesto.dal !== stagione.dal ||
-      chiesto.al !== stagione.al);
-  if (cambiata) {
-    throw new HttpsError('failed-precondition', 'Questo link non è più valido.');
-  }
+  // In transazione, non in lotto, come la conferma e la revoca: tre «mai lavorato qui»
+  // mandati insieme dallo stesso link (doppio tap, rete che va e viene) leggevano tutti
+  // la richiesta ancora aperta e scrivevano tre segnalazioni, cioè la sospensione del
+  // libretto (§8.5) da un link solo. Rileggendo la richiesta qui dentro, dal secondo in
+  // poi si fermano.
+  await db.runTransaction(async (tx) => {
+    const [controllo, stagioneSnap] = await Promise.all([tx.get(richiestaRef), tx.get(stagioneRef)]);
+    const statoOra = (controllo.data()?.stato as string | undefined) ?? '';
+    if (statoOra !== 'aperta') {
+      throw new HttpsError('failed-precondition', frasePerStato(statoOra, 'aperta'));
+    }
+    const stagione = stagioneSnap.data() as Stagione | undefined;
 
-  const lotto = db.batch();
-  // Se il lavoratore ha cancellato la stagione nel frattempo, la segnalazione si scrive
-  // comunque: altrimenti bastava cancellarla per scansare la segnalazione, e l'intera
-  // commit saltava per una `update` su un documento che non c'è più.
-  if (stagioneSnap.exists) {
-    lotto.update(stagioneRef, {
-      stato: 'non_confermata',
-      richiestaId: null,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
-  lotto.update(richiestaRef, { stato: 'usata' });
+    // Gli stessi due controlli della conferma, che qui mancavano: con un link vecchio
+    // ancora aperto si poteva far diventare «non confermata» una stagione che aspettava
+    // un altro responsabile, e appioppare al lavoratore una segnalazione delle due che
+    // sospendono il libretto.
+    const chiesto = richiesta.stagioneAlMomento;
+    const cambiata =
+      stagione !== undefined &&
+      (stagione.richiestaId !== token ||
+        stagione.stato !== 'in_attesa' ||
+        chiesto === undefined ||
+        chiesto.strutturaId !== stagione.strutturaId ||
+        chiesto.dal !== stagione.dal ||
+        chiesto.al !== stagione.al);
+    if (cambiata) {
+      throw new HttpsError('failed-precondition', 'Questo link non è più valido.');
+    }
 
-  if (motivo === 'mai_lavorato') {
-    lotto.set(db.collection('segnalazioni').doc(), {
-      tipo: motivo,
-      richiestaId: token,
-      workerUid: richiesta.workerUid,
-      createdAt: adesso(),
-      gestita: false,
-    });
-  }
+    // Se il lavoratore ha cancellato la stagione nel frattempo, la segnalazione si scrive
+    // comunque: altrimenti bastava cancellarla per scansare la segnalazione, e l'intera
+    // commit saltava per una `update` su un documento che non c'è più.
+    if (stagioneSnap.exists) {
+      tx.update(stagioneRef, {
+        stato: 'non_confermata',
+        richiestaId: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    tx.update(richiestaRef, { stato: 'usata' });
 
-  await lotto.commit();
+    if (motivo === 'mai_lavorato') {
+      tx.set(db.collection('segnalazioni').doc(), {
+        tipo: motivo,
+        richiestaId: token,
+        workerUid: richiesta.workerUid,
+        createdAt: adesso(),
+        gestita: false,
+      });
+    }
+  });
 
   // §8.5: dopo due «non ha mai lavorato qui» il libretto si sospende, finché l'admin
   // non lo guarda. Non è una punizione automatica definitiva: è un freno.

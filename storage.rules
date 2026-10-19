@@ -8,7 +8,11 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     match /foto/{uid} {
-      allow read: if true;
+      // Una alla volta, conoscendo il percorso: `get`, non `read`. Con `read` chiunque,
+      // anche senza essere collegato, elencava la cartella con una riga e si scaricava
+      // tutte le foto, anche di chi ha spento il link pubblico (trovato il 2026-10-19:
+      // lo stesso buco chiuso su `profiliPubblici` il 2026-10-01).
+      allow get: if true;
       allow write: if request.auth != null
         && request.auth.uid == uid
         && request.resource.size <= 5 * 1024 * 1024

@@ -660,6 +660,38 @@ describe('strutture', () => {
     await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ unitaA: 'struttura-1' })));
   });
 
+  // Si leggono senza essere collegati: un campo senza limiti era spazio gratis per
+  // chiunque, servito a tutti (revisione del 19/10). I limiti sono quelli che l'app
+  // produce già da un nome di 120 caratteri.
+  it('non si creano con un nome normalizzato senza limiti', async () => {
+    await assertFails(
+      addDoc(collection(comeMario(), 'strutture'), struttura({ nomeNormalizzato: 'x'.repeat(500) })),
+    );
+  });
+
+  it('non si creano con parole troppo lunghe o che non sono testo', async () => {
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ parole: ['x'.repeat(500)] })));
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ parole: [{ a: 1 }] })));
+  });
+
+  it('non si creano con provincia o geohash fuori misura', async () => {
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ provincia: 'x'.repeat(500) })));
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ geohash: 'x'.repeat(500) })));
+    await assertFails(addDoc(collection(comeMario(), 'strutture'), struttura({ geohash: 42 })));
+  });
+
+  it('un nome lungo come il massimo, scritto dall’app, passa ancora', async () => {
+    const nome = `Agriturismo ${'Ulivo '.repeat(18)}`.trim().slice(0, 120);
+    const normalizzato = nome.toLowerCase();
+    const parole = [...new Set(normalizzato.split(' ').filter((p) => p.length >= 3))].slice(0, 12);
+    await assertSucceeds(
+      addDoc(
+        collection(comeMario(), 'strutture'),
+        struttura({ nome, nomeNormalizzato: normalizzato, parole }),
+      ),
+    );
+  });
+
   it('si leggono senza essere collegati (serve in L4) ma non si modificano', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'strutture', 'struttura-1'), { nome: 'Bar Somma', nConferme: 3 });
