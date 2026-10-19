@@ -9,7 +9,7 @@
     "build": "npm run lint && vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit && tsc --noEmit -p functions",
-    "test": "firebase emulators:exec --only firestore --project libretto-prova \"node --test test/*.test.mjs\"",
+    "test": "firebase emulators:exec --only firestore,storage --project libretto-prova \"node --test test/*.test.mjs\"",
     "emulatori": "npm --prefix functions run build && firebase emulators:start",
     "deploy:regole": "firebase deploy --only firestore:rules,storage",
     "deploy": "npm run prontezza && npm run build && firebase deploy --only hosting,firestore,storage,functions",
