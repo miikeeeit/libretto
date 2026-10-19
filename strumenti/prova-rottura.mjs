@@ -885,15 +885,11 @@ await titolo('«Non ha mai lavorato qui», due volte');
 // chiamata due volte insieme. La §8.5 vuole due segnalazioni per sospendere: da un link
 // solo deve uscirne una, altrimenti un responsabile da solo sospende un libretto.
 await titolo('Lo stesso link usato due volte nello stesso istante');
-// DIFETTO NOTO, NON ANCORA CORRETTO (2026-10-19). Su questo codice la prova è rossa
-// quattro volte su cinque: `segnalaStagione` legge la richiesta fuori da una transazione,
-// quindi tre chiamate insieme scrivono tre segnalazioni e il libretto si sospende. La
-// correzione (rileggere la richiesta dentro una transazione, come fa già la revoca) è da
-// fare: finché manca, la prova si salta, così il resto resta un segnale pulito.
-// Per vederla: LIBRETTO_PROVA_GARE=1 npm run prova:rottura
-if (process.env.LIBRETTO_PROVA_GARE !== '1') {
-  console.log('  · saltata: difetto noto, da correggere (LIBRETTO_PROVA_GARE=1 per lanciarla)');
-} else {
+// Trovato il 2026-10-19: `segnalaStagione` leggeva la richiesta fuori da una transazione,
+// e tre chiamate insieme scrivevano tre segnalazioni (rossa quattro volte su cinque).
+// Corretto la sera stessa rileggendo la richiesta dentro una transazione, come la
+// conferma e la revoca. Da allora la prova gira sempre.
+{
   await azzera();
   const mario = await preparaLavoratore('347 710 0001', 'Mario', 'inv-1');
   await creaStagione(mario.uid, 'sua');
