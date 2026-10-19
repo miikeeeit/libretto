@@ -15,7 +15,14 @@ import { normalizzaTelefono, scriviDocumento } from './emulatore.mjs';
 
 // Il codice della pulizia notturna si importa e si esegue per davvero, contro gli
 // emulatori. Vuole le funzioni compilate: `npm --prefix functions run build`.
+//
+// Tutti e tre gli emulatori che la pulizia tocca, non solo Firestore: senza le altre due
+// righe gli accessi e i file andavano ai servizi veri di Google, con le credenziali che
+// il computer ha in tasca. Su un Mac con `gcloud` configurato la pulizia falliva a metà
+// («No Firebase project was found») e la prova si fermava lì (2026-10-19).
 process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080';
+process.env.FIREBASE_AUTH_EMULATOR_HOST ??= '127.0.0.1:9099';
+process.env.FIREBASE_STORAGE_EMULATOR_HOST ??= '127.0.0.1:9199';
 process.env.GCLOUD_PROJECT ??= process.env.LIBRETTO_PROGETTO ?? 'libretto-prova';
 const { eseguiPulizia } = await import('../functions/lib/pulizia.js');
 // Lo stesso Timestamp che usa la pulizia, per farla girare «fra 91 giorni».
