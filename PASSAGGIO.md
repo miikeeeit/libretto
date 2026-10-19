@@ -194,7 +194,7 @@ progetto vero da `.firebaserc`.
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # 79 prove sulle regole di sicurezza (70 Firestore + 9 Storage)
+npm test                # 83 prove sulle regole di sicurezza (74 Firestore + 9 Storage)
 npm run prova:rottura   # 69 casi, chiamando le funzioni a mano (anche le gare)
 npm run prova:flusso    # 29 passaggi in browser, tre finestre
 ```
