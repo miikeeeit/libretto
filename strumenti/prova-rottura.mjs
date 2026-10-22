@@ -947,6 +947,41 @@ await titolo('Lo stesso link usato due volte nello stesso istante');
   }
 }
 
+// ---- Il tetto di dieci conferme, con le conferme insieme ---------------
+// La §8.4 conta le conferme delle ultime 24 ore prima della transazione: quattro conferme
+// partite insieme dallo stesso numero leggevano tutte lo stesso conteggio e passavano
+// tutte, oltre il tetto. Dentro la transazione si rilegge, e si mettono in fila.
+await titolo('Il tetto di dieci conferme, con le conferme insieme');
+{
+  await azzera();
+  const responsabile = await entra('348 720 0001');
+  const token = [];
+  for (let i = 0; i < 12; i += 1) {
+    const lavoratore = await preparaLavoratore(`347 72${String(i).padStart(2, '0')} 001`, `Caio${i}`, `inv-${i}`);
+    await creaStagione(lavoratore.uid, 'sua', { strutturaId: { stringValue: `struttura-${i}` } });
+    const esito = await chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: responsabile.telefono },
+      lavoratore,
+    );
+    token.push(esito.risultato.token);
+  }
+  // Otto una alla volta, poi quattro insieme: ne devono passare due, non quattro.
+  for (const t of token.slice(0, 8)) {
+    await chiama('confermaStagione', { token: t, ...CONFERMA_VALIDA }, responsabile);
+  }
+  const insieme = await Promise.all(
+    token.slice(8).map((t) => chiamaInsieme(confermaStagione, { token: t, ...CONFERMA_VALIDA }, responsabile)),
+  );
+  const passate = insieme.filter((e) => e.ok).length;
+  const conferme = (await leggi('conferme'))?.documents ?? [];
+  if (conferme.length === 10 && passate === 2) {
+    ok('quattro conferme insieme oltre l’ottava: ne passano due, e il tetto resta dieci');
+  } else {
+    no('quattro conferme insieme oltre l’ottava: ne passano due, e il tetto resta dieci', `${passate} passate insieme, ${conferme.length} conferme in tutto`);
+  }
+}
+
 // ---- Revoca -------------------------------------------------------------
 await titolo('La revoca del responsabile');
 {
