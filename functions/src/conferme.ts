@@ -30,6 +30,8 @@ type Richiesta = {
   /** Cosa è stato chiesto, congelato al momento dell'invio del link. */
   stagioneAlMomento?: {
     strutturaId: string;
+    strutturaNome: string;
+    strutturaComune: string;
     ruolo: string;
     dal: string;
     al: string;
@@ -39,6 +41,8 @@ type Richiesta = {
 
 type Stagione = {
   strutturaId: string;
+  strutturaNome: string;
+  strutturaComune: string;
   ruolo: string;
   dal: string;
   al: string;
@@ -167,11 +171,15 @@ export const confermaStagione = onCall(async (chiamata) => {
   // conferma non si dà più. Il confronto con la foto del momento dell'invio è quello
   // che tiene se i primi due vengono aggirati: senza, si poteva mandare il link per il
   // Bar Somma, cambiare struttura e periodo lasciando stato e token intatti, e farsi
-  // confermare dal titolare del Bar Somma un posto dove non aveva visto nessuno.
+  // confermare dal titolare del Bar Somma un posto dove non aveva visto nessuno. Anche
+  // nome e comune: sono quello che il responsabile ha letto nel messaggio e quello che la
+  // pagina pubblica mostra come confermato.
   const chiesto = richiesta.stagioneAlMomento;
   const uguale =
     chiesto !== undefined &&
     chiesto.strutturaId === stagione.strutturaId &&
+    chiesto.strutturaNome === stagione.strutturaNome &&
+    chiesto.strutturaComune === stagione.strutturaComune &&
     chiesto.ruolo === stagione.ruolo &&
     chiesto.dal === stagione.dal &&
     chiesto.al === stagione.al;
@@ -237,6 +245,8 @@ export const confermaStagione = onCall(async (chiamata) => {
       ora.richiestaId !== token ||
       ora.stato !== 'in_attesa' ||
       ora.strutturaId !== stagione.strutturaId ||
+      ora.strutturaNome !== stagione.strutturaNome ||
+      ora.strutturaComune !== stagione.strutturaComune ||
       ora.ruolo !== stagione.ruolo ||
       ora.dal !== stagione.dal ||
       ora.al !== stagione.al
@@ -340,6 +350,9 @@ export const segnalaStagione = onCall(async (chiamata) => {
         stagione.stato !== 'in_attesa' ||
         chiesto === undefined ||
         chiesto.strutturaId !== stagione.strutturaId ||
+        chiesto.strutturaNome !== stagione.strutturaNome ||
+        chiesto.strutturaComune !== stagione.strutturaComune ||
+        chiesto.ruolo !== stagione.ruolo ||
         chiesto.dal !== stagione.dal ||
         chiesto.al !== stagione.al);
     if (cambiata) {
