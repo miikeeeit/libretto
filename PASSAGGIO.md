@@ -169,6 +169,11 @@ due lasciano aperto, e li ho chiusi uno alla volta dopo che una prova mi aveva s
 correzione che credevo bastasse. **Se sembrano superflui, non toccarli**: leggere i commenti
 sopra, che spiegano quale attacco copre ognuno.
 
+**Le richieste di un lavoratore si mettono in fila su `limiti/{uid}`.** `creaRichiesta`
+legge stagione, link aperti e tetto della §8.4 in una transazione che scrive anche quel
+documento, come `confermaStagione` con `responsabili/{uid}`. Non su `workers/{uid}`: ogni
+invio rifarebbe la pagina pubblica.
+
 **`verificatoAdmin` non si scrive mai a `false` in un merge.** Lo mette a mano Mike per i
 responsabili che conosce (PC4): un `set(..., {verificatoAdmin: false}, {merge: true})` in
 `confermaStagione` gliel'avrebbe cancellato a ogni conferma successiva.
@@ -195,7 +200,7 @@ progetto vero da `.firebaserc`.
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
 npm test                # 83 prove sulle regole di sicurezza (74 Firestore + 9 Storage)
-npm run prova:rottura   # 70 casi, chiamando le funzioni a mano (anche le gare)
+npm run prova:rottura   # 80 casi, chiamando le funzioni a mano (anche le gare)
 npm run prova:flusso    # 29 passaggi in browser, tre finestre
 ```
 
