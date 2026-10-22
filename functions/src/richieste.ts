@@ -83,102 +83,115 @@ export const creaRichiesta = onCall(async (richiesta) => {
   }
 
   const stagioneRef = db.doc(`workers/${workerUid}/stagioni/${stagioneId}`);
-  const stagioneSnap = await stagioneRef.get();
-  if (!stagioneSnap.exists) throw new HttpsError('not-found', 'Questa stagione non c’è più.');
-  const stagione = stagioneSnap.data() as {
-    stato: string;
-    strutturaId: string;
-    strutturaNome: string;
-    strutturaComune: string;
-    ruolo: string;
-    dal: string;
-    al: string;
-    competenzeDichiarate: string[];
-    richiestaId: string | null;
-  };
-
-  if (stagione.stato === 'confermata') {
-    throw new HttpsError('failed-precondition', 'Questa stagione è già confermata.');
-  }
-
-  await colleghiNonSiConfermano(telefonoResponsabile, workerUid, stagione.strutturaId, stagione);
-
-  // §8.4: non più di cinque richieste aperte per volta. Quelle di questa stagione non si
-  // contano, perché stanno per essere revocate: un link nuovo chiude tutti i precedenti
-  // della stessa stagione. Prima si chiudeva solo quello scritto sulla stagione, e chi
-  // correggeva una stagione dopo averla mandata lasciava il link vecchio aperto: contava
-  // nel limite per 30 giorni, e bastavano poche correzioni per restare bloccati.
-  const aperte = await db
-    .collection('richieste')
-    .where('workerUid', '==', workerUid)
-    .where('stato', '==', 'aperta')
-    .get();
-  const diQuestaStagione = aperte.docs.filter((d) => d.data().stagioneId === stagioneId);
-
-  // Un link «aperto» la cui stagione non lo aspetta più — cancellata, corretta, già
-  // rimandata — non aspetta niente: non si conta, e si chiude qui. Prima contava nel
-  // limite fino alla scadenza, 30 giorni dopo.
-  const morte: typeof aperte.docs = [];
-  let altreAperte = 0;
-  for (const altra of aperte.docs) {
-    if (altra.data().stagioneId === stagioneId) continue;
-    const suaStagione = await db.doc(`workers/${workerUid}/stagioni/${altra.data().stagioneId}`).get();
-    const laAspetta =
-      suaStagione.exists &&
-      suaStagione.data()?.richiestaId === altra.id &&
-      suaStagione.data()?.stato === 'in_attesa';
-    if (laAspetta) altreAperte += 1;
-    else morte.push(altra);
-  }
-  if (altreAperte >= MAX_RICHIESTE_APERTE) {
-    throw new HttpsError(
-      'resource-exhausted',
-      `Hai già ${MAX_RICHIESTE_APERTE} richieste in attesa. Aspetta una risposta prima di mandarne altre.`,
-    );
-  }
-
+  // Un documento per lavoratore, che ogni richiesta legge e scrive: così le richieste
+  // dello stesso lavoratore si mettono in fila, come le conferme di un numero con
+  // `responsabili/{uid}`. Non `workers/{uid}`, che riscriverebbe la pagina pubblica a ogni
+  // invio. Dal client non si legge né si scrive (`limiti` non ha regole sue).
+  const limiteRef = db.doc(`limiti/${workerUid}`);
   const token = generaToken();
-  const lotto = db.batch();
 
-  // Rimandare una richiesta uccide quelle di prima: il link vecchio non deve più
-  // funzionare, altrimenti resterebbero in giro due link per la stessa stagione.
-  // Si revocano solo link di questo lavoratore e di questa stagione, trovati dal
-  // server: non quello scritto sulla stagione, che un tempo il client poteva scegliere
-  // (chi conosceva il link di un altro poteva farlo revocare da qui).
-  for (const vecchia of [...diQuestaStagione, ...morte]) {
-    lotto.update(vecchia.ref, { stato: 'revocata' });
-  }
+  // In transazione, non in lotto. Prima la stagione si leggeva qui e si scriveva molto
+  // dopo, senza rileggerla: se il lavoratore cambiava il nome della struttura nel mezzo,
+  // la stagione finiva «in attesa» col nome nuovo e la foto col vecchio; se il
+  // responsabile confermava nel mezzo, la conferma restava in `conferme` ma la stagione
+  // tornava «in attesa»; e otto richieste partite insieme contavano tutte zero aperte e
+  // passavano tutte il tetto della §8.4.
+  await db.runTransaction(async (tx) => {
+    const [stagioneSnap, aperte] = await Promise.all([
+      tx.get(stagioneRef),
+      tx.get(db.collection('richieste').where('workerUid', '==', workerUid).where('stato', '==', 'aperta')),
+      tx.get(limiteRef),
+    ]);
+    if (!stagioneSnap.exists) throw new HttpsError('not-found', 'Questa stagione non c’è più.');
+    const stagione = stagioneSnap.data() as {
+      stato: string;
+      strutturaId: string;
+      strutturaNome: string;
+      strutturaComune: string;
+      ruolo: string;
+      dal: string;
+      al: string;
+      competenzeDichiarate: string[];
+      richiestaId: string | null;
+    };
 
-  lotto.set(db.doc(`richieste/${token}`), {
-    workerUid,
-    stagioneId,
-    nomeResponsabile,
-    telefonoResponsabile,
-    stato: 'aperta',
-    // Cosa si sta chiedendo, congelato adesso. È quello che il responsabile vedrà, ed è
-    // il paragone con cui la conferma verrà accettata o rifiutata: senza, chi ha mandato
-    // il link può cambiare struttura e periodo dopo averlo mandato, e nessuno — né il
-    // responsabile né il server — ha modo di accorgersene.
-    stagioneAlMomento: {
-      strutturaId: stagione.strutturaId,
-      strutturaNome: stagione.strutturaNome,
-      strutturaComune: stagione.strutturaComune,
-      ruolo: stagione.ruolo,
-      dal: stagione.dal,
-      al: stagione.al,
-      competenzeDichiarate: stagione.competenzeDichiarate ?? [],
-    },
-    createdAt: adesso(),
-    scadeIl: fraGiorni(GIORNI_SCADENZA),
+    if (stagione.stato === 'confermata') {
+      throw new HttpsError('failed-precondition', 'Questa stagione è già confermata.');
+    }
+
+    // Qui dentro e non prima: struttura e periodo sono quelli della stagione appena letta,
+    // e una stagione cambiata fra il controllo e l'invio non lo scavalca.
+    await colleghiNonSiConfermano(telefonoResponsabile, workerUid, stagione.strutturaId, stagione);
+
+    // §8.4: non più di cinque richieste aperte per volta. Quelle di questa stagione non si
+    // contano, perché stanno per essere revocate: un link nuovo chiude tutti i precedenti
+    // della stessa stagione. Prima si chiudeva solo quello scritto sulla stagione, e chi
+    // correggeva una stagione dopo averla mandata lasciava il link vecchio aperto: contava
+    // nel limite per 30 giorni, e bastavano poche correzioni per restare bloccati.
+    const diQuestaStagione = aperte.docs.filter((d) => d.data().stagioneId === stagioneId);
+
+    // Un link «aperto» la cui stagione non lo aspetta più — cancellata, corretta, già
+    // rimandata — non aspetta niente: non si conta, e si chiude qui. Prima contava nel
+    // limite fino alla scadenza, 30 giorni dopo.
+    const morte: typeof aperte.docs = [];
+    let altreAperte = 0;
+    for (const altra of aperte.docs) {
+      if (altra.data().stagioneId === stagioneId) continue;
+      const suaStagione = await tx.get(db.doc(`workers/${workerUid}/stagioni/${altra.data().stagioneId}`));
+      const laAspetta =
+        suaStagione.exists &&
+        suaStagione.data()?.richiestaId === altra.id &&
+        suaStagione.data()?.stato === 'in_attesa';
+      if (laAspetta) altreAperte += 1;
+      else morte.push(altra);
+    }
+    if (altreAperte >= MAX_RICHIESTE_APERTE) {
+      throw new HttpsError(
+        'resource-exhausted',
+        `Hai già ${MAX_RICHIESTE_APERTE} richieste in attesa. Aspetta una risposta prima di mandarne altre.`,
+      );
+    }
+
+    // Rimandare una richiesta uccide quelle di prima: il link vecchio non deve più
+    // funzionare, altrimenti resterebbero in giro due link per la stessa stagione.
+    // Si revocano solo link di questo lavoratore e di questa stagione, trovati dal
+    // server: non quello scritto sulla stagione, che un tempo il client poteva scegliere
+    // (chi conosceva il link di un altro poteva farlo revocare da qui).
+    for (const vecchia of [...diQuestaStagione, ...morte]) {
+      tx.update(vecchia.ref, { stato: 'revocata' });
+    }
+
+    tx.set(db.doc(`richieste/${token}`), {
+      workerUid,
+      stagioneId,
+      nomeResponsabile,
+      telefonoResponsabile,
+      stato: 'aperta',
+      // Cosa si sta chiedendo, congelato adesso. È quello che il responsabile vedrà, ed è
+      // il paragone con cui la conferma verrà accettata o rifiutata: senza, chi ha mandato
+      // il link può cambiare struttura e periodo dopo averlo mandato, e nessuno — né il
+      // responsabile né il server — ha modo di accorgersene.
+      stagioneAlMomento: {
+        strutturaId: stagione.strutturaId,
+        strutturaNome: stagione.strutturaNome,
+        strutturaComune: stagione.strutturaComune,
+        ruolo: stagione.ruolo,
+        dal: stagione.dal,
+        al: stagione.al,
+        competenzeDichiarate: stagione.competenzeDichiarate ?? [],
+      },
+      createdAt: adesso(),
+      scadeIl: fraGiorni(GIORNI_SCADENZA),
+    });
+
+    tx.update(stagioneRef, {
+      stato: 'in_attesa',
+      richiestaId: token,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    tx.set(limiteRef, { ultimaRichiesta: adesso() });
   });
-
-  lotto.update(stagioneRef, {
-    stato: 'in_attesa',
-    richiestaId: token,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
-
-  await lotto.commit();
 
   // Il link lo compone il client con il proprio indirizzo: così funziona uguale in
   // locale, in prova e online, senza configurare niente da nessuna parte.

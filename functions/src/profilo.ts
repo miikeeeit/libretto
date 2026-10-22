@@ -286,6 +286,7 @@ export const eliminaAccount = onCall(async (chiamata) => {
   await db.doc(`responsabili/${uid}`).delete().catch(() => undefined);
 
   await db.doc(`sospensioni/${uid}`).delete().catch(() => undefined);
+  await db.doc(`limiti/${uid}`).delete().catch(() => undefined);
 
   // Anche le segnalazioni su di lui. Restavano attaccate a un uid che con l'accesso
   // cancellato non esiste più: non servivano a niente contro chi rientra (avrebbe un uid
