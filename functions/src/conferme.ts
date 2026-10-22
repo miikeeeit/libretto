@@ -195,34 +195,39 @@ export const confermaStagione = onCall(async (chiamata) => {
 
   // §8.4: dieci conferme in ventiquattr'ore per numero. Chi ne fa di più non è un
   // titolare che si ricorda i suoi stagionali.
-  const recenti = await db
+  const recentiDelResponsabile = db
     .collection('conferme')
     .where('responsabileUid', '==', responsabileUid)
-    .where('createdAt', '>=', Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000))
-    .count()
-    .get();
-  if (recenti.data().count >= MAX_CONFERME_AL_GIORNO) {
-    throw new HttpsError(
-      'resource-exhausted',
-      'Hai confermato molte stagioni nelle ultime ore. Riprova domani.',
-    );
-  }
+    .where('createdAt', '>=', Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000));
+  const troppeConferme = () =>
+    new HttpsError('resource-exhausted', 'Hai confermato molte stagioni nelle ultime ore. Riprova domani.');
+  const recenti = await recentiDelResponsabile.count().get();
+  if (recenti.data().count >= MAX_CONFERME_AL_GIORNO) throw troppeConferme();
 
   const confermaRef = db.collection('conferme').doc();
   const revocabileFinoA = fraGiorni(GIORNI_REVOCA);
   const strutturaRef = db.doc(`strutture/${stagione.strutturaId}`);
+  const responsabileRef = db.doc(`responsabili/${responsabileUid}`);
 
   await db.runTransaction(async (tx) => {
     // Si rilegge dentro la transazione: se qualcuno ha confermato un istante prima,
     // il secondo tentativo si fermi qui e non scriva una seconda conferma.
-    const [controllo, stagioneOra, strutturaSnap] = await Promise.all([
+    //
+    // Anche il tetto della §8.4: il conteggio di sopra è fuori dalla transazione, e
+    // quattro conferme partite insieme lo leggevano tutte uguale e passavano tutte.
+    // `responsabili/{uid}` si legge qui perché ogni conferma lo scrive: così le conferme
+    // dello stesso numero si mettono in fila, e chi arriva dopo ricontare le conferme.
+    const [controllo, stagioneOra, strutturaSnap, , recentiOra] = await Promise.all([
       tx.get(richiestaRef),
       tx.get(stagioneRef),
       tx.get(strutturaRef),
+      tx.get(responsabileRef),
+      tx.get(recentiDelResponsabile.limit(MAX_CONFERME_AL_GIORNO)),
     ]);
     if (controllo.data()?.stato !== 'aperta') {
       throw new HttpsError('failed-precondition', 'Questa conferma è già stata registrata.');
     }
+    if (recentiOra.size >= MAX_CONFERME_AL_GIORNO) throw troppeConferme();
     // E anche la stagione: i controlli di sopra la leggono fuori dalla transazione, e
     // se il lavoratore la correggeva proprio in quel momento la conferma finiva su una
     // stagione già diversa da quella del link.
