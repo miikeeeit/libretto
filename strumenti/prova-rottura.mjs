@@ -29,6 +29,7 @@ const { eseguiPulizia } = await import('../functions/lib/pulizia.js');
 // l'emulatore delle funzioni le mette in fila una dopo l'altra, mentre online girano
 // davvero insieme, e una gara fra due chiamate lì non si vedrebbe mai.
 const { confermaStagione, segnalaStagione } = await import('../functions/lib/conferme.js');
+const { creaRichiesta } = await import('../functions/lib/richieste.js');
 // Lo stesso Timestamp che usa la pulizia, per farla girare «fra 91 giorni».
 const { Timestamp } = createRequire(new URL('../functions/package.json', import.meta.url))(
   'firebase-admin/firestore',
@@ -172,6 +173,43 @@ async function scriviCampi(percorso, campi) {
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
     body: JSON.stringify({ fields: campi }),
   });
+}
+
+/**
+ * Scrive dei campi come li scriverebbe il client del lavoratore: col suo gettone, quindi
+ * passando dalle regole (a differenza di `scriviCampi`, che le scavalca). Restituisce lo
+ * stato HTTP: 200 se le regole lo lasciano fare.
+ */
+async function scriviComeUtente(percorso, campi, utente) {
+  const chiavi = Object.keys(campi)
+    .map((c) => `updateMask.fieldPaths=${c}`)
+    .join('&');
+  const risposta = await fetch(`${documenti}/${percorso}?${chiavi}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${utente.gettone}` },
+    body: JSON.stringify({ fields: campi }),
+  });
+  return risposta.status;
+}
+
+const attendi = (ms) => new Promise((fine) => setTimeout(fine, ms));
+
+/**
+ * Le stagioni **confermate** che la pagina pubblica `profiliPubblici/<slug>` mostra, come
+ * `{ struttura, comune }`. La scrive un trigger, in ritardo: con `aspetta` si dà tempo
+ * fino a 6 secondi perché ne compaia una, per quando ci si aspetta che compaia.
+ */
+async function confermatePubbliche(slug, aspetta = false) {
+  const fine = Date.now() + (aspetta ? 6000 : 0);
+  for (;;) {
+    const profilo = await leggi(`profiliPubblici/${slug}`);
+    const confermate = (profilo?.fields?.stagioni?.arrayValue?.values ?? [])
+      .map((s) => s.mapValue?.fields ?? {})
+      .filter((s) => s.stato?.stringValue === 'confermata')
+      .map((s) => ({ struttura: s.struttura?.stringValue, comune: s.comune?.stringValue }));
+    if (confermate.length > 0 || Date.now() >= fine) return confermate;
+    await attendi(250);
+  }
 }
 
 /** Un lavoratore con profilo e una stagione in bozza, pronto per chiedere conferme. */
@@ -979,6 +1017,315 @@ await titolo('Il tetto di dieci conferme, con le conferme insieme');
     ok('quattro conferme insieme oltre l’ottava: ne passano due, e il tetto resta dieci');
   } else {
     no('quattro conferme insieme oltre l’ottava: ne passano due, e il tetto resta dieci', `${passate} passate insieme, ${conferme.length} conferme in tutto`);
+  }
+}
+
+// ---- Il nome della struttura cambiato sotto al link ---------------------
+// La conferma si difende con tre controlli (token, stato, paragone con la foto
+// `stagioneAlMomento`), e il terzo guardava strutturaId, ruolo, dal e al, ma **non il nome
+// né il comune della struttura**. Il nome è quello che il responsabile legge nel messaggio
+// («Bar Somma») e quello che la pagina pubblica mostra come confermato.
+//
+// Le regole non lasciano cambiare il nome di una stagione già «in attesa»: un update dal
+// client la riporta sempre in bozza. Quello stato però si raggiunge con la gara di
+// `creaRichiesta`, che legge la stagione (richieste.ts, `stagioneRef.get()`) e molto dopo
+// scrive con un batch (`lotto.commit()`) senza rileggere: se il lavoratore cambia il nome
+// dal client in mezzo, il batch mette «in attesa» la bozza col nome nuovo, mentre la foto
+// ha il nome vecchio. Qui lo stato che esce dalla gara si ricrea a mano, scrivendo da
+// Admin dopo `creaRichiesta` solo nome e comune e lasciando stato e token intatti (la
+// gara vera è provata sotto, «Il nome cambiato mentre la richiesta parte»).
+await titolo('Il nome della struttura cambiato sotto al link');
+{
+  await azzera();
+
+  // Controllo: senza toccare niente, la conferma passa. Serve a dire che le rosse qui
+  // sotto non dipendono da altro.
+  const intatto = await preparaLavoratore('347 920 0001', 'Anna', 'inv-0');
+  await creaStagione(intatto.uid, 'sua');
+  const primo = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393489200090' },
+    intatto,
+  );
+  await deveRiuscire(
+    'senza toccare la stagione, la conferma passa',
+    chiama('confermaStagione', { token: primo.risultato.token, ...CONFERMA_VALIDA }, await entra('348 920 0090')),
+  );
+
+  const casi = [
+    { nome: 'il solo nome', campi: { strutturaNome: 'Hotel Miramare' } },
+    { nome: 'il solo comune', campi: { strutturaComune: 'Sperlonga' } },
+    { nome: 'nome e comune', campi: { strutturaNome: 'Hotel Miramare', strutturaComune: 'Sperlonga' } },
+  ];
+
+  for (const [i, caso] of casi.entries()) {
+    const lavoratore = await preparaLavoratore(`347 921 000${i}`, `Mario${i}`, `inv-${i + 1}`);
+    await creaStagione(lavoratore.uid, 'sua');
+    const esito = await chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: `+39348921009${i}` },
+      lavoratore,
+    );
+    const token = esito.risultato.token;
+
+    // Lo stato dopo la gara: «in attesa», stesso token, ma nome e/o comune già cambiati.
+    await scriviCampi(
+      `workers/${lavoratore.uid}/stagioni/sua`,
+      Object.fromEntries(Object.entries(caso.campi).map(([k, v]) => [k, { stringValue: v }])),
+    );
+
+    const responsabile = await entra(`348 921 009${i}`);
+    const conferma = await deveFallire(
+      `confermare dopo aver cambiato ${caso.nome} della struttura`,
+      chiama('confermaStagione', { token, ...CONFERMA_VALIDA }, responsabile),
+    );
+
+    // E la pagina pubblica non deve mostrare come confermata la struttura che nessuno ha
+    // visto: se la conferma è passata si dà tempo al trigger di scriverla.
+    const slug = `mario${i}-0001`;
+    const confermate = await confermatePubbliche(slug, conferma.ok);
+    const sbagliata = confermate.find(
+      (s) =>
+        (caso.campi.strutturaNome !== undefined && s.struttura === caso.campi.strutturaNome) ||
+        (caso.campi.strutturaComune !== undefined && s.comune === caso.campi.strutturaComune),
+    );
+    if (sbagliata) {
+      no(
+        `la pagina pubblica non mostra come confermato ${caso.nome} cambiato`,
+        `profiliPubblici/${slug} mostra «${sbagliata.struttura}», ${sbagliata.comune} come confermato: ` +
+          'il responsabile aveva letto «Bar Somma», Terracina',
+      );
+    } else {
+      ok(`la pagina pubblica non mostra come confermato ${caso.nome} cambiato`);
+    }
+  }
+}
+
+// ---- Il nome cambiato mentre la richiesta parte -------------------------
+// La versione di raggiungibilità: non si scrive niente da Admin, si fa la gara. Fino a 20
+// giri di `creaRichiesta` (dentro questo processo) e di una PATCH della stagione col
+// gettone del lavoratore, quindi passando dalle regole, ritardata da 0 a 40 ms: da qualche
+// parte cade fra la lettura della stagione e il batch che la mette «in attesa». Rossa se la
+// stagione finisce «in attesa» col nome nuovo mentre la foto della richiesta ha il vecchio.
+await titolo('Il nome cambiato mentre la richiesta parte');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 930 0001', 'Mario', 'inv-1');
+  await creaStagione(mario.uid, 'sua');
+  const percorso = `workers/${mario.uid}/stagioni/sua`;
+  const GIRI = 20;
+
+  // Un giro a vuoto, su un'altra stagione: il primo uso dei canali verso l'emulatore è
+  // lento e sposterebbe i tempi del primo giro vero.
+  await creaStagione(mario.uid, 'calda');
+  await chiamaInsieme(
+    creaRichiesta,
+    { stagioneId: 'calda', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393489300099' },
+    mario,
+  );
+
+  let riuscite = 0;
+  const vinte = [];
+  for (let giro = 0; giro < GIRI; giro += 1) {
+    // La stagione torna com'era: in bozza, «Bar Somma», senza link.
+    await scriviCampi(percorso, {
+      strutturaNome: { stringValue: 'Bar Somma' },
+      stato: { stringValue: 'bozza' },
+      richiestaId: { nullValue: null },
+    });
+
+    const ritardo = Math.round((giro * 40) / (GIRI - 1));
+    const [richiesta, stato] = await Promise.all([
+      chiamaInsieme(
+        creaRichiesta,
+        { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: '+393489300002' },
+        mario,
+      ),
+      (async () => {
+        await attendi(ritardo);
+        return scriviComeUtente(
+          percorso,
+          { strutturaNome: { stringValue: 'Hotel Miramare' }, stato: { stringValue: 'bozza' }, richiestaId: { nullValue: null } },
+          mario,
+        );
+      })(),
+    ]);
+    if (stato === 200) riuscite += 1;
+
+    const campi = (await leggi(percorso))?.fields ?? {};
+    const token = campi.richiestaId?.stringValue;
+    const foto = token
+      ? (await leggi(`richieste/${token}`))?.fields?.stagioneAlMomento?.mapValue?.fields?.strutturaNome?.stringValue
+      : undefined;
+    if (
+      richiesta.ok &&
+      campi.stato?.stringValue === 'in_attesa' &&
+      campi.strutturaNome?.stringValue === 'Hotel Miramare' &&
+      foto === 'Bar Somma'
+    ) {
+      vinte.push(ritardo);
+    }
+  }
+
+  if (riuscite === 0) {
+    no('la PATCH del lavoratore passa dalle regole', 'rifiutata in tutti i giri: la prova non prova niente');
+  } else if (vinte.length > 0) {
+    no(
+      'richiesta e cambio del nome insieme: la stagione in attesa ha lo stesso nome della foto',
+      `${vinte.length} giri su ${GIRI} (ritardi ${vinte.join(', ')} ms): «in attesa» con «Hotel Miramare», la foto dice «Bar Somma»`,
+    );
+  } else {
+    ok(`richiesta e cambio del nome insieme: in ${GIRI} giri la stagione in attesa ha sempre il nome della foto`);
+  }
+}
+
+// ---- Conferma e nuovo invio insieme, sulla stessa stagione --------------
+// Il responsabile conferma il link T1 mentre il lavoratore lo rimanda (T2). `creaRichiesta`
+// legge la stagione «in attesa», poi la conferma si completa, poi il suo batch revoca T1 e
+// riporta la stagione «in attesa» con T2: la conferma resta in `conferme`, contata e
+// pagata dal responsabile, ma sul libretto non c'è più, e il link che l'ha data risulta
+// «revocato».
+//
+// Gli esiti giusti dipendono solo da chi arriva prima: vince la conferma (stagione
+// confermata, T1 usata, una conferma, nessun T2 aperto) oppure vince il nuovo invio (T1
+// revocata, T2 aperta, nessuna conferma); se entrambe vengono rifiutate, che resti tutto
+// com'era. Il difetto è tutto il resto. Non si pretende che vinca sempre la conferma:
+// chi rimanda per primo la fa morire legittimamente. Cinque volte, ogni volta con un
+// ritardo diverso fra i due, per far cadere la lettura di `creaRichiesta` prima della fine
+// della conferma.
+await titolo('Conferma e nuovo invio insieme, sulla stessa stagione');
+{
+  await azzera();
+  const GIRI = 5;
+  const difetti = [];
+  const esiti = { conferma: 0, invio: 0, nessuno: 0 };
+
+  for (let giro = 0; giro < GIRI; giro += 1) {
+    const lavoratore = await preparaLavoratore(`347 94${giro} 0001`, `Luca${giro}`, `inv-${giro}`);
+    await creaStagione(lavoratore.uid, 'sua');
+    const responsabile = await entra(`348 94${giro} 0002`);
+    const primo = await chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: responsabile.telefono },
+      lavoratore,
+    );
+    const T1 = primo.risultato.token;
+
+    const ritardo = giro * 5;
+    const [conferma, invio] = await Promise.all([
+      chiamaInsieme(confermaStagione, { token: T1, ...CONFERMA_VALIDA }, responsabile),
+      (async () => {
+        await attendi(ritardo);
+        return chiamaInsieme(
+          creaRichiesta,
+          { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: `+39348940009${giro}` },
+          lavoratore,
+        );
+      })(),
+    ]);
+
+    const stagione = (await leggi(`workers/${lavoratore.uid}/stagioni/sua`))?.fields ?? {};
+    const statoT1 = (await leggi(`richieste/${T1}`))?.fields?.stato?.stringValue;
+    const T2 = invio.ok ? invio.risultato.token : null;
+    const statoT2 = T2 ? (await leggi(`richieste/${T2}`))?.fields?.stato?.stringValue : null;
+    const conferme = ((await leggi('conferme'))?.documents ?? []).filter(
+      (d) => d.fields?.workerUid?.stringValue === lavoratore.uid,
+    ).length;
+
+    const vinceConferma =
+      stagione.stato?.stringValue === 'confermata' && statoT1 === 'usata' && conferme === 1 && statoT2 !== 'aperta';
+    const vinceInvio =
+      stagione.stato?.stringValue === 'in_attesa' &&
+      stagione.richiestaId?.stringValue === T2 &&
+      statoT1 === 'revocata' &&
+      statoT2 === 'aperta' &&
+      conferme === 0;
+    const restaTutto =
+      !conferma.ok &&
+      !invio.ok &&
+      stagione.stato?.stringValue === 'in_attesa' &&
+      stagione.richiestaId?.stringValue === T1 &&
+      statoT1 === 'aperta' &&
+      conferme === 0;
+    if (vinceConferma) esiti.conferma += 1;
+    else if (vinceInvio) esiti.invio += 1;
+    else if (restaTutto) esiti.nessuno += 1;
+    else {
+      difetti.push(
+        `giro ${giro + 1} (ritardo ${ritardo} ms): conferma ${conferma.ok ? 'riuscita' : 'rifiutata'}, ` +
+          `nuovo invio ${invio.ok ? 'riuscito' : 'rifiutato'}, stagione «${stagione.stato?.stringValue}», ` +
+          `T1 «${statoT1}», T2 «${statoT2}», ${conferme} conferme`,
+      );
+    }
+  }
+
+  if (difetti.length === 0) {
+    ok(
+      `conferma e nuovo invio insieme, ${GIRI} volte: sempre uno solo dei due ` +
+        `(${esiti.conferma} la conferma, ${esiti.invio} l’invio, ${esiti.nessuno} nessuno)`,
+    );
+  } else {
+    no(
+      'conferma e nuovo invio insieme: la stagione resta confermata con T1 usata, oppure T1 revocata senza conferma',
+      `${difetti.length} giri su ${GIRI}:\n      ${difetti.join('\n      ')}`,
+    );
+  }
+}
+
+// ---- Il tetto di cinque richieste, con le richieste insieme -------------
+// §8.4: cinque richieste aperte per lavoratore. `creaRichiesta` le conta prima del batch,
+// fuori da una transazione: otto richieste partite insieme leggevano tutte «zero aperte» e
+// passavano tutte. Si contano le richieste aperte la cui stagione le aspetta ancora, che
+// sono quelle che il tetto deve fermare. Tre giri, su tre lavoratori nuovi: la gara non
+// deve riuscire in nessuno.
+await titolo('Il tetto di cinque richieste, con le richieste insieme');
+{
+  await azzera();
+  const GIRI = 3;
+  const risultati = [];
+
+  for (let giro = 0; giro < GIRI; giro += 1) {
+    const mario = await preparaLavoratore(`347 95${giro} 0001`, `Piera${giro}`, `inv-${giro}`);
+    for (let i = 0; i < 8; i += 1) {
+      await creaStagione(mario.uid, `stagione-${i}`, {
+        strutturaId: { stringValue: `struttura-${i}` },
+        dal: { stringValue: `202${i}-05` },
+        al: { stringValue: `202${i}-09` },
+      });
+    }
+
+    const esiti = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        chiamaInsieme(
+          creaRichiesta,
+          { stagioneId: `stagione-${i}`, nomeResponsabile: 'Ciro', telefonoResponsabile: `+39348950${giro}00${i}` },
+          mario,
+        ),
+      ),
+    );
+
+    const richieste = ((await leggi('richieste?pageSize=300'))?.documents ?? []).filter(
+      (d) => d.fields?.workerUid?.stringValue === mario.uid && d.fields?.stato?.stringValue === 'aperta',
+    );
+    let aspettate = 0;
+    for (const r of richieste) {
+      const id = r.name.split('/').at(-1);
+      const stagione = (await leggi(`workers/${mario.uid}/stagioni/${r.fields.stagioneId.stringValue}`))?.fields ?? {};
+      if (stagione.richiestaId?.stringValue === id && stagione.stato?.stringValue === 'in_attesa') aspettate += 1;
+    }
+    risultati.push({ riuscite: esiti.filter((e) => e.ok).length, aspettate });
+  }
+
+  const troppe = risultati.filter((r) => r.aspettate > 5);
+  if (troppe.length > 0) {
+    no(
+      'otto richieste insieme: al massimo cinque restano in attesa',
+      `${troppe.length} giri su ${GIRI} oltre il tetto: ${risultati
+        .map((r) => `${r.riuscite} riuscite e ${r.aspettate} in attesa`)
+        .join('; ')} (atteso al massimo 5)`,
+    );
+  } else {
+    ok(`otto richieste insieme, ${GIRI} volte: al massimo cinque restano in attesa (${risultati.map((r) => r.aspettate).join(', ')})`);
   }
 }
 
