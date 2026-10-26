@@ -398,11 +398,16 @@ export const segnalaStagione = onCall(async (chiamata) => {
 
   // §8.5: dopo due «non ha mai lavorato qui» il libretto si sospende, finché l'admin
   // non lo guarda. Non è una punizione automatica definitiva: è un freno.
+  //
+  // Contano solo quelle che Mike non ha ancora guardato. Quando toglie la sospensione
+  // mette `gestita: true` dalla console; prima le segnalazioni gestite contavano ancora, e
+  // un solo «mai lavorato» nuovo bastava a sospendere di nuovo il libretto.
   if (motivo === 'mai_lavorato') {
     const segnalazioni = await db
       .collection('segnalazioni')
       .where('workerUid', '==', richiesta.workerUid)
       .where('tipo', '==', 'mai_lavorato')
+      .where('gestita', '==', false)
       .count()
       .get();
 
