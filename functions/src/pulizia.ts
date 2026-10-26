@@ -12,7 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { Timestamp } from 'firebase-admin/firestore';
-import { db } from './comune';
+import { db, telefonoValido } from './comune';
 import { aggiornaStatisticheConferme } from './statistiche';
 
 /** §9: le richieste chiuse si cancellano dopo 90 giorni. */
@@ -96,6 +96,10 @@ async function togliResponsabiliSenzaConferme(adesso: Timestamp): Promise<number
     if (ultimaVolta > limite) continue;
     if (await haConferme(r.id)) continue;
     await r.ref.delete();
+    // Con lui se ne va il documento che metteva in fila le conferme del suo numero
+    // (`confermaStagione`), che ha il telefono nell'id.
+    const telefono = r.data().telefono;
+    if (telefonoValido(telefono)) await db.doc(`limiti/${telefono}`).delete();
     tolti += 1;
   }
   return tolti;
@@ -137,6 +141,8 @@ async function togliAccessiInutili(adesso: Timestamp): Promise<number> {
       await cancellaFile(`foto/${uid}`);
       await cancellaFile(`cv/${uid}`);
       await db.doc(`responsabili/${uid}`).delete();
+      // Come sopra: il documento di fila delle sue conferme se ne va con `responsabili/{uid}`.
+      if (telefonoValido(utente.phoneNumber)) await db.doc(`limiti/${utente.phoneNumber}`).delete();
       await auth.deleteUser(uid);
       tolti += 1;
     }

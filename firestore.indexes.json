@@ -1,7 +1,7 @@
 {
   "indexes": [
     {
-      "comment": "§8.4: quante conferme ha fatto questo numero nelle ultime 24 ore.",
+      "comment": "Dal 26/10 non lo usa più nessuna query: il tetto della §8.4 conta le richieste usate dal numero (indice su richieste, telefonoResponsabile e usataIl). Resta qui perché toglierlo farebbe chiedere al deploy se cancellarlo.",
       "collectionGroup": "conferme",
       "queryScope": "COLLECTION",
       "fields": [
@@ -41,6 +41,21 @@
         },
         {
           "fieldPath": "stato",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "§8.4: quante conferme ha fatto questo numero nelle ultime 24 ore, contando le richieste che ha usato per confermare (restano anche se cancella l'account o revoca).",
+      "collectionGroup": "richieste",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "telefonoResponsabile",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "usataIl",
           "order": "ASCENDING"
         }
       ]

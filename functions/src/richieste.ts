@@ -86,7 +86,8 @@ export const creaRichiesta = onCall(async (richiesta) => {
   const stagioneRef = db.doc(`workers/${workerUid}/stagioni/${stagioneId}`);
   // Un documento per lavoratore, che ogni richiesta legge e scrive: così le richieste
   // dello stesso lavoratore si mettono in fila, come le conferme di un numero con
-  // `responsabili/{uid}`. Non `workers/{uid}`, che riscriverebbe la pagina pubblica a ogni
+  // `limiti/{telefono}` (stessa collezione: gli id non si scontrano, perché un uid non
+  // comincia con «+»). Non `workers/{uid}`, che riscriverebbe la pagina pubblica a ogni
   // invio. Dal client non si legge né si scrive (`limiti` non ha regole sue).
   const limiteRef = db.doc(`limiti/${workerUid}`);
   const token = generaToken();

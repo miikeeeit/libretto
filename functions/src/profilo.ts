@@ -12,7 +12,7 @@ import { FieldValue, type WriteBatch } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { adesso, db, testoRichiesto } from './comune';
+import { adesso, db, telefonoValido, testoRichiesto } from './comune';
 import { dopoStagioneCancellata } from './stagioniCancellate';
 
 type Privacy = {
@@ -284,6 +284,11 @@ export const eliminaAccount = onCall(async (chiamata) => {
   // che ha dato restano — sono il profilo di altre persone — ma senza nulla che le
   // riconduca a un numero, e con l'accesso cancellato l'uid è morto.
   await db.doc(`responsabili/${uid}`).delete().catch(() => undefined);
+  // E il documento che mette in fila le conferme del suo numero (`confermaStagione`): ha
+  // il telefono nell'id, e deve andarsene con `responsabili/{uid}`. Il tetto della §8.4
+  // non si azzera, perché conta le richieste usate, non questo documento.
+  const telefono = chiamata.auth?.token?.phone_number;
+  if (telefonoValido(telefono)) await db.doc(`limiti/${telefono}`).delete().catch(() => undefined);
 
   await db.doc(`sospensioni/${uid}`).delete().catch(() => undefined);
   await db.doc(`limiti/${uid}`).delete().catch(() => undefined);

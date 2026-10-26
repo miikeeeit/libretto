@@ -203,19 +203,27 @@ export const confermaStagione = onCall(async (chiamata) => {
 
   // §8.4: dieci conferme in ventiquattr'ore per numero. Chi ne fa di più non è un
   // titolare che si ricorda i suoi stagionali.
-  const recentiDelResponsabile = db
-    .collection('conferme')
-    .where('responsabileUid', '==', responsabileUid)
-    .where('createdAt', '>=', Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000));
+  //
+  // Si contano le richieste che questo numero ha usato per confermare, non le conferme del
+  // suo uid. L'uid è l'accesso, e un accesso si cancella e si rifà con lo stesso numero:
+  // uid nuovo, conteggio a zero, altre dieci conferme. Le richieste invece restano anche
+  // se il responsabile cancella l'account, e una revoca ne cambia lo stato ma non
+  // `usataIl`: revocare e riconfermare non azzera il tetto.
+  const recentiDelNumero = db
+    .collection('richieste')
+    .where('telefonoResponsabile', '==', telefono)
+    .where('usataIl', '>=', Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000));
   const troppeConferme = () =>
     new HttpsError('resource-exhausted', 'Hai confermato molte stagioni nelle ultime ore. Riprova domani.');
-  const recenti = await recentiDelResponsabile.count().get();
+  const recenti = await recentiDelNumero.count().get();
   if (recenti.data().count >= MAX_CONFERME_AL_GIORNO) throw troppeConferme();
 
   const confermaRef = db.collection('conferme').doc();
   const revocabileFinoA = fraGiorni(GIORNI_REVOCA);
   const strutturaRef = db.doc(`strutture/${stagione.strutturaId}`);
-  const responsabileRef = db.doc(`responsabili/${responsabileUid}`);
+  // Un documento per numero, che ogni conferma legge e scrive. Il numero comincia con «+»,
+  // un uid no: non si scontra con `limiti/{uid}` dei lavoratori (`creaRichiesta`).
+  const limiteRef = db.doc(`limiti/${telefono}`);
 
   await db.runTransaction(async (tx) => {
     // Si rilegge dentro la transazione: se qualcuno ha confermato un istante prima,
@@ -223,14 +231,17 @@ export const confermaStagione = onCall(async (chiamata) => {
     //
     // Anche il tetto della §8.4: il conteggio di sopra è fuori dalla transazione, e
     // quattro conferme partite insieme lo leggevano tutte uguale e passavano tutte.
-    // `responsabili/{uid}` si legge qui perché ogni conferma lo scrive: così le conferme
-    // dello stesso numero si mettono in fila, e chi arriva dopo ricontare le conferme.
+    // `limiti/{telefono}` si legge qui perché ogni conferma lo scrive: così le conferme
+    // dello stesso numero si mettono in fila, e chi arriva dopo riconta le richieste. Per
+    // numero e non per uid (prima era `responsabili/{uid}`): due accessi con lo stesso
+    // numero — il gettone di un account appena cancellato vale ancora fino a un'ora — non
+    // si sarebbero messi in fila.
     const [controllo, stagioneOra, strutturaSnap, , recentiOra] = await Promise.all([
       tx.get(richiestaRef),
       tx.get(stagioneRef),
       tx.get(strutturaRef),
-      tx.get(responsabileRef),
-      tx.get(recentiDelResponsabile.limit(MAX_CONFERME_AL_GIORNO)),
+      tx.get(limiteRef),
+      tx.get(recentiDelNumero.limit(MAX_CONFERME_AL_GIORNO)),
     ]);
     if (controllo.data()?.stato !== 'aperta') {
       throw new HttpsError('failed-precondition', 'Questa conferma è già stata registrata.');
@@ -277,7 +288,10 @@ export const confermaStagione = onCall(async (chiamata) => {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    tx.update(richiestaRef, { stato: 'usata' });
+    // `usataIl` è quello che conta il tetto della §8.4. Solo qui: una segnalazione usa
+    // il link, ma non è una conferma.
+    tx.update(richiestaRef, { stato: 'usata', usataIl: adesso() });
+    tx.set(limiteRef, { ultimaConferma: adesso() });
 
     // Del responsabile si salva solo il telefono e dove ha confermato (§9).
     // `verificatoAdmin` non si scrive qui di proposito: Mike lo mette a mano per i
