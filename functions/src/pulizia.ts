@@ -250,17 +250,29 @@ async function sbloccaStagioniAppese(): Promise<number> {
     .limit(MASSIMO_PER_GIRO)
     .get();
 
+  //
+  // Stagione e richiesta si rileggono in una transazione: la stagione letta qui sopra può
+  // essere già vecchia. Se il lavoratore la rimandava proprio adesso (link nuovo, di nuovo
+  // «in attesa»), la pulizia ragionava sul link vecchio e metteva «scaduta» sopra quello
+  // nuovo, e il responsabile trovava una stagione che non lo aspettava più.
   let sbloccate = 0;
   for (const stagione of appese.docs) {
     const richiestaId = stagione.data().richiestaId;
     if (typeof richiestaId !== 'string') continue;
 
-    const richiesta = await db.doc(`richieste/${richiestaId}`).get();
-    const ancoraAperta = richiesta.exists && richiesta.data()?.stato === 'aperta';
-    if (ancoraAperta) continue;
+    const sbloccata = await db.runTransaction(async (tx) => {
+      const [ora, richiesta] = await Promise.all([
+        tx.get(stagione.ref),
+        tx.get(db.doc(`richieste/${richiestaId}`)),
+      ]);
+      const ancoraAppesa = ora.data()?.stato === 'in_attesa' && ora.data()?.richiestaId === richiestaId;
+      const ancoraAperta = richiesta.exists && richiesta.data()?.stato === 'aperta';
+      if (!ancoraAppesa || ancoraAperta) return false;
 
-    await stagione.ref.update({ stato: 'scaduta', updatedAt: FieldValue.serverTimestamp() });
-    sbloccate += 1;
+      tx.update(stagione.ref, { stato: 'scaduta', updatedAt: FieldValue.serverTimestamp() });
+      return true;
+    });
+    if (sbloccata) sbloccate += 1;
   }
   return sbloccate;
 }

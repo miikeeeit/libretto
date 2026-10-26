@@ -461,10 +461,17 @@ export const revocaConferma = onCall(async (chiamata) => {
     // Si guarda cosa esiste ancora: una revoca non deve fallire perché nel frattempo il
     // lavoratore ha cancellato la stagione, né creare una struttura dal nulla con un
     // conteggio negativo.
-    const [stagioneSnap, strutturaSnap] = await Promise.all([
+    //
+    // E la conferma stessa: è stata trovata fuori dalla transazione, e se nel mezzo il
+    // lavoratore ha cancellato la stagione, `dopoStagioneCancellata` l'ha già tolta e ha già
+    // scalato i conteggi. Senza rileggerla qui si scalavano una seconda volta, e struttura e
+    // responsabile finivano a −1.
+    const [stagioneSnap, strutturaSnap, confermaOra] = await Promise.all([
       tx.get(stagioneRef),
       tx.get(strutturaRef),
+      tx.get(conferma.ref),
     ]);
+    if (!confermaOra.exists) throw new HttpsError('not-found', 'Non trovo la conferma da revocare.');
 
     tx.delete(conferma.ref);
 
