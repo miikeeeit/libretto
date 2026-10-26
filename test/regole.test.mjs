@@ -10,7 +10,8 @@
 // Si lanciano dentro l'emulatore Firestore, senza toccare il progetto vero.
 
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
 import { after, before, describe, it } from 'node:test';
 import {
   collection,
@@ -75,7 +76,7 @@ function stagione(modifiche = {}) {
     ruolo: 'sala',
     dal: '2025-05',
     al: '2025-09',
-    competenzeDichiarate: ['sala.palmare', 'sala.servizio'],
+    competenzeDichiarate: ['sala.palmare', 'sala.rango'],
     competenzeConfermate: [],
     stato: 'bozza',
     nascosta: false,
@@ -553,6 +554,275 @@ describe('stagioni', () => {
 
   it('una propria stagione si cancella', async () => {
     await assertSucceeds(deleteDoc(doc(comeMario(), ...percorso, 'esistente')));
+  });
+});
+
+// ---- Ruoli e competenze della §7 ---------------------------------------
+// Gli id dei ruoli e delle competenze stanno scritti in tre posti, perché nessuno dei tre
+// può importare gli altri: `src/data/ruoli.ts` (l'app), `firestore.rules` (le regole) e
+// `functions/src/ruoli.ts` (le funzioni). Qui i ruoli e le competenze dell'app si leggono
+// **dal testo** del file, con espressioni regolari: gli script Node di questo repo non
+// importano il TypeScript (vedi `strumenti/emulatore.mjs`).
+
+/**
+ * Le stringhe fra apici di una lista `[ ... ]`, saltando i commenti (che in italiano hanno
+ * spesso un apostrofo). `da` è l'indice subito dopo la `[`; si ferma alla `]`.
+ */
+function stringheFraQuadre(testo, da) {
+  const trovate = [];
+  let i = da;
+  while (i < testo.length) {
+    const c = testo[i];
+    if (c === ']') return trovate;
+    if (c === '/' && testo[i + 1] === '/') {
+      while (i < testo.length && testo[i] !== '\n') i += 1;
+    } else if (c === '/' && testo[i + 1] === '*') {
+      const fine = testo.indexOf('*/', i + 2);
+      i = fine < 0 ? testo.length : fine + 2;
+    } else if (c === "'" || c === '"' || c === '`') {
+      let stringa = '';
+      i += 1;
+      while (i < testo.length && testo[i] !== c) {
+        if (testo[i] === '\\') i += 1;
+        stringa += testo[i];
+        i += 1;
+      }
+      trovate.push(stringa);
+      i += 1;
+    } else {
+      i += 1;
+    }
+  }
+  return null;
+}
+
+/** La lista di stringhe che segue `intestazione` (un'espressione regolare che finisce con la `[`). */
+function elencoDopo(testo, intestazione, cosaCerco) {
+  const trovata = intestazione.exec(testo);
+  assert.ok(trovata, `non trovo ${cosaCerco}`);
+  const elenco = stringheFraQuadre(testo, trovata.index + trovata[0].length);
+  assert.ok(elenco, `${cosaCerco}: l’elenco non finisce con una «]»`);
+  return elenco;
+}
+
+/** Ruoli (con le loro competenze) e competenze di `src/data/ruoli.ts`, letti dal testo. */
+function leggiRuoliDellApp() {
+  const testo = readFileSync('src/data/ruoli.ts', 'utf8');
+
+  const inizioCompetenze = testo.indexOf('export const COMPETENZE = {');
+  const fineCompetenze = testo.indexOf('} as const', inizioCompetenze);
+  assert.ok(inizioCompetenze >= 0 && fineCompetenze > inizioCompetenze, 'src/data/ruoli.ts: non trovo COMPETENZE');
+  const competenze = [
+    ...testo.slice(inizioCompetenze, fineCompetenze).matchAll(/^\s+'([A-Za-z]+\.[A-Za-z]+)':/gm),
+  ].map((m) => m[1]);
+
+  const inizioRuoli = testo.indexOf('export const RUOLI: Ruolo[] = [');
+  assert.ok(inizioRuoli >= 0, 'src/data/ruoli.ts: non trovo RUOLI');
+  const ruoli = [];
+  const testaDiUnRuolo = /\{\s*id:\s*'([^']+)',\s*nome:\s*(?:'[^']*'|"[^"]*"),\s*competenze:\s*\[/g;
+  for (const m of testo.slice(inizioRuoli).matchAll(testaDiUnRuolo)) {
+    const elenco = stringheFraQuadre(testo, inizioRuoli + m.index + m[0].length);
+    assert.ok(elenco, `src/data/ruoli.ts: l’elenco delle competenze di «${m[1]}» non finisce con una «]»`);
+    ruoli.push({ id: m[1], competenze: elenco });
+  }
+  return { ruoli, competenze };
+}
+
+/** Due elenchi di id sono lo stesso insieme? Se no, dice quali mancano e quali sono di troppo. */
+function stessoInsieme(copia, attesi, trovati) {
+  const mancano = attesi.filter((id) => !trovati.includes(id));
+  const inPiu = trovati.filter((id) => !attesi.includes(id));
+  assert.ok(
+    mancano.length === 0 && inPiu.length === 0,
+    `${copia}: mancano ${JSON.stringify(mancano)}, in più ${JSON.stringify(inPiu)} rispetto a src/data/ruoli.ts`,
+  );
+}
+
+describe('ruoli e competenze della §7', () => {
+  const percorso = ['workers', LAVORATORE, 'stagioni'];
+  const dellApp = leggiRuoliDellApp;
+
+  before(async () => {
+    await preparaDati();
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workers', LAVORATORE), profilo());
+      // Stagioni scritte come le avrebbe lasciate un client a mano, prima che le regole
+      // chiedessero ruoli e competenze della §7: restano nel database e devono restare gestibili.
+      for (const id of ['liberaNascondi', 'liberaPeriodo', 'liberaRuolo', 'liberaCompetenza', 'liberaAltroRuolo']) {
+        await setDoc(
+          doc(db, ...percorso, id),
+          stagione({ ruolo: 'Pizzaiolo stellato', competenzeDichiarate: ['Sommelier AIS'] }),
+        );
+      }
+    });
+  });
+
+  it('src/data/ruoli.ts ha i 12 ruoli della §7, e ogni loro competenza esiste in COMPETENZE', () => {
+    const { ruoli, competenze } = dellApp();
+    assert.equal(ruoli.length, 12, `trovati ${ruoli.length} ruoli: ${ruoli.map((r) => r.id).join(', ')}`);
+    assert.ok(competenze.length > 0, 'non ho trovato nessuna competenza in COMPETENZE');
+    for (const ruolo of ruoli) {
+      assert.ok(ruolo.competenze.length > 0, `il ruolo «${ruolo.id}» non ha competenze`);
+      const sconosciute = ruolo.competenze.filter((c) => !competenze.includes(c));
+      assert.deepEqual(sconosciute, [], `il ruolo «${ruolo.id}» ha competenze che non sono in COMPETENZE`);
+    }
+  });
+
+  it('ogni ruolo della §7 si salva con tutte le sue competenze', async () => {
+    // Protegge dalle regole troppo strette: un elenco sbagliato nelle regole bloccherebbe
+    // chi sceglie quel ruolo o quella competenza in L4.
+    const { ruoli } = dellApp();
+    const rifiutati = [];
+    for (const ruolo of ruoli) {
+      try {
+        await assertSucceeds(
+          setDoc(
+            doc(comeMario(), ...percorso, `ruolo-${ruolo.id}`),
+            stagione({ ruolo: ruolo.id, competenzeDichiarate: ruolo.competenze }),
+          ),
+        );
+      } catch {
+        rifiutati.push(ruolo.id);
+      }
+    }
+    assert.equal(
+      rifiutati.length,
+      0,
+      `le regole rifiutano una stagione di questi ruoli, con tutte le loro competenze: ${rifiutati.join(', ')}`,
+    );
+  });
+
+  it('una stagione non si crea con un ruolo di testo libero', async () => {
+    // Controllo: la stessa stagione con un ruolo previsto si salva.
+    await assertSucceeds(
+      setDoc(
+        doc(comeMario(), ...percorso, 'ruoloPrevisto'),
+        stagione({ ruolo: 'bar', competenzeDichiarate: ['bar.caffetteria'] }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(comeMario(), ...percorso, 'ruoloLibero'),
+        stagione({ ruolo: 'Pizzaiolo stellato', competenzeDichiarate: ['bar.caffetteria'] }),
+      ),
+    );
+  });
+
+  it('una stagione non si crea con competenze di testo libero', async () => {
+    // Controllo: le stesse competenze, senza il testo libero, si salvano.
+    await assertSucceeds(
+      setDoc(
+        doc(comeMario(), ...percorso, 'competenzePreviste'),
+        stagione({ competenzeDichiarate: ['sala.palmare', 'sala.vino'] }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(comeMario(), ...percorso, 'competenzeLibere'),
+        stagione({ competenzeDichiarate: ['sala.palmare', 'Sommelier AIS'] }),
+      ),
+    );
+  });
+
+  // Chi ha già una stagione col testo libero non deve restare bloccato: la deve poter
+  // nascondere (privacy, §1 regola 3) e correggere. Quello che non si può è aggiungere
+  // altro testo libero. Le modifiche sono quelle dell'app (`aggiornaStagione`): tutti i
+  // dati della stagione, sempre in bozza e senza link.
+  describe('una stagione già salvata con testo libero', () => {
+    const comeLApp = (cambi) => {
+      const { strutturaId, strutturaNome, strutturaComune, ruolo, dal, al, competenzeDichiarate } = stagione({
+        ruolo: 'Pizzaiolo stellato',
+        competenzeDichiarate: ['Sommelier AIS'],
+      });
+      return {
+        strutturaId,
+        strutturaNome,
+        strutturaComune,
+        ruolo,
+        dal,
+        al,
+        competenzeDichiarate,
+        ...cambi,
+        stato: 'bozza',
+        richiestaId: null,
+        updatedAt: new Date(),
+      };
+    };
+
+    it('si nasconde', async () => {
+      await assertSucceeds(
+        updateDoc(doc(comeMario(), ...percorso, 'liberaNascondi'), { nascosta: true, updatedAt: new Date() }),
+      );
+    });
+
+    it('si corregge nel periodo, lasciando ruolo e competenze come sono', async () => {
+      await assertSucceeds(
+        updateDoc(doc(comeMario(), ...percorso, 'liberaPeriodo'), comeLApp({ dal: '2025-06' })),
+      );
+    });
+
+    it('passa a un ruolo della §7 senza toccare le competenze', async () => {
+      await assertSucceeds(updateDoc(doc(comeMario(), ...percorso, 'liberaRuolo'), comeLApp({ ruolo: 'bar' })));
+    });
+
+    it('non prende altre competenze di testo libero', async () => {
+      await assertFails(
+        updateDoc(
+          doc(comeMario(), ...percorso, 'liberaCompetenza'),
+          comeLApp({ competenzeDichiarate: ['Sommelier AIS', 'Barista campione'] }),
+        ),
+      );
+    });
+
+    it('non passa a un altro ruolo di testo libero', async () => {
+      await assertFails(
+        updateDoc(doc(comeMario(), ...percorso, 'liberaAltroRuolo'), comeLApp({ ruolo: 'Chef stellato' })),
+      );
+    });
+  });
+
+  // Le tre copie degli id devono restare uguali: se una si dimentica un ruolo, o ne ha uno
+  // di troppo, o le regole rifiutano ciò che l'app offre, o le funzioni scartano ciò che le
+  // regole lasciano passare.
+  describe('le tre copie degli id coincidono', () => {
+    it('firestore.rules ha gli stessi id di src/data/ruoli.ts', () => {
+      const { ruoli, competenze } = dellApp();
+      const regole = readFileSync('firestore.rules', 'utf8');
+      const ruoliRegole = elencoDopo(
+        regole,
+        /function\s+ruoliPrevisti\s*\(\s*\)\s*\{\s*return\s*\[/,
+        '«function ruoliPrevisti() { return [ ... ]; }» in firestore.rules',
+      );
+      const competenzeRegole = elencoDopo(
+        regole,
+        /function\s+competenzePreviste\s*\(\s*\)\s*\{\s*return\s*\[/,
+        '«function competenzePreviste() { return [ ... ]; }» in firestore.rules',
+      );
+      stessoInsieme('firestore.rules, ruoliPrevisti()', ruoli.map((r) => r.id), ruoliRegole);
+      stessoInsieme('firestore.rules, competenzePreviste()', competenze, competenzeRegole);
+    });
+
+    it('functions/src/ruoli.ts ha gli stessi id di src/data/ruoli.ts', () => {
+      const { ruoli, competenze } = dellApp();
+      assert.ok(
+        existsSync('functions/src/ruoli.ts'),
+        'functions/src/ruoli.ts non esiste: ci vogliono RUOLI_PREVISTI e COMPETENZE_PREVISTE con gli stessi id di src/data/ruoli.ts',
+      );
+      const funzioni = readFileSync('functions/src/ruoli.ts', 'utf8');
+      const ruoliFunzioni = elencoDopo(
+        funzioni,
+        /export\s+const\s+RUOLI_PREVISTI\s*:\s*readonly\s+string\[\]\s*=\s*\[/,
+        '«export const RUOLI_PREVISTI: readonly string[] = [ ... ];» in functions/src/ruoli.ts',
+      );
+      const competenzeFunzioni = elencoDopo(
+        funzioni,
+        /export\s+const\s+COMPETENZE_PREVISTE\s*:\s*readonly\s+string\[\]\s*=\s*\[/,
+        '«export const COMPETENZE_PREVISTE: readonly string[] = [ ... ];» in functions/src/ruoli.ts',
+      );
+      stessoInsieme('functions/src/ruoli.ts, RUOLI_PREVISTI', ruoli.map((r) => r.id), ruoliFunzioni);
+      stessoInsieme('functions/src/ruoli.ts, COMPETENZE_PREVISTE', competenze, competenzeFunzioni);
+    });
   });
 });
 

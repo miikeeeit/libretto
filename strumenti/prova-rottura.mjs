@@ -28,18 +28,28 @@ const { eseguiPulizia } = await import('../functions/lib/pulizia.js');
 // Anche le chiamate che devono partire nello stesso istante si eseguono qui dentro:
 // l'emulatore delle funzioni le mette in fila una dopo l'altra, mentre online girano
 // davvero insieme, e una gara fra due chiamate lì non si vedrebbe mai.
-const { confermaStagione, segnalaStagione } = await import('../functions/lib/conferme.js');
+const { confermaStagione, segnalaStagione, revocaConferma } = await import('../functions/lib/conferme.js');
 const { creaRichiesta } = await import('../functions/lib/richieste.js');
+// Per le gare riprodotte a comando (vedi `inMezzo`) e per la pagina pubblica ricostruita
+// qui dentro. `db` è la stessa copia di Firestore che usano le funzioni compilate.
+const { db } = await import('../functions/lib/comune.js');
+const { ricostruisciProfiloPubblico } = await import('../functions/lib/profilo.js');
+const { dopoStagioneCancellata } = await import('../functions/lib/stagioniCancellate.js');
 // Lo stesso Timestamp che usa la pulizia, per farla girare «fra 91 giorni».
-const { Timestamp } = createRequire(new URL('../functions/package.json', import.meta.url))(
-  'firebase-admin/firestore',
-);
+const requireFunzioni = createRequire(new URL('../functions/package.json', import.meta.url));
+const { Timestamp } = requireFunzioni('firebase-admin/firestore');
+const { getStorage } = requireFunzioni('firebase-admin/storage');
 
 const PROGETTO = process.env.LIBRETTO_PROGETTO ?? 'libretto-prova';
 const FIRESTORE = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
 const AUTH = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
 const FUNZIONI = process.env.LIBRETTO_FUNZIONI ?? '127.0.0.1:5001';
 const REGIONE = 'europe-west8';
+// Il bucket di default dell'emulatore delle funzioni, quello che usa `eliminaAccount`:
+// `FIREBASE_CONFIG` dell'emulatore dice `<progetto>.appspot.com`. Il controllo positivo
+// della prova LF-11 (un file indicato nel profilo che oggi si cancella) lo conferma ogni
+// volta: se il bucket fosse un altro, quel controllo diventerebbe rosso.
+const BUCKET = process.env.LIBRETTO_BUCKET ?? `${PROGETTO}.appspot.com`;
 
 const documenti = `http://${FIRESTORE}/v1/projects/${PROGETTO}/databases/(default)/documents`;
 
@@ -193,6 +203,101 @@ async function scriviComeUtente(percorso, campi, utente) {
 }
 
 const attendi = (ms) => new Promise((fine) => setTimeout(fine, ms));
+
+// ---- Le gare a comando --------------------------------------------------
+// Le gare vere (due chiamate nello stesso istante) riescono a volte sì e a volte no. Per
+// provare un difetto che sta in una finestra stretta fra «il codice ha letto» e «il codice
+// scrive», qui si fa succedere un'azione **subito dopo** una lettura, prima che il codice
+// che l'ha chiesta riprenda. Così la gara si riproduce sempre, non a volte.
+//
+// Funziona agganciandosi a `Query.get`, la stessa copia che usano le funzioni compilate
+// (le letture `collection().get()` e `collectionGroup().get()` ci passano da lì, perché
+// ereditano da `Query`). Non vede le letture dentro una transazione (`tx.get`) né i
+// documenti singoli (`doc().get()`): quelle non passano da `Query.get`.
+const prototipoQuery = Object.getPrototypeOf(db.collection('x').where('a', '==', 1));
+const getOriginale = prototipoQuery.get;
+if (
+  db.collection('x').get !== getOriginale ||
+  db.collectionGroup('x').get !== getOriginale ||
+  db.doc('x/y').get === getOriginale
+) {
+  throw new Error('L’aiuto per le gare non è valido: Query.get non è più la lettura di collezioni e gruppi.');
+}
+
+/** Cosa fare dopo la prossima lettura che restituisce un documento voluto. Una volta sola. */
+let dopoLaLettura = null;
+/** Se è un elenco, tutti i percorsi dei documenti restituiti da ogni lettura. */
+let registro = null;
+
+prototipoQuery.get = async function (...argomenti) {
+  const risultato = await getOriginale.apply(this, argomenti);
+  if (registro) registro.push(...risultato.docs.map((d) => d.ref.path));
+  const scatto = dopoLaLettura;
+  if (scatto && risultato.docs.some((d) => scatto.quale(d.ref.path))) {
+    // Una volta sola, e prima dell'azione: l'azione legge anche lei.
+    dopoLaLettura = null;
+    await scatto.azione();
+  }
+  return risultato;
+};
+
+/**
+ * Arma l'azione: scatta dopo la prossima lettura che restituisce un documento per cui
+ * `quale(percorso)` è vero. Restituisce lo stato, da guardare dopo: `scattata` (la lettura
+ * è davvero avvenuta, altrimenti la prova non ha provato niente), `esito` e `errore`.
+ */
+function inMezzo(quale, azione) {
+  const stato = { scattata: false, esito: undefined, errore: undefined };
+  dopoLaLettura = {
+    quale,
+    azione: async () => {
+      stato.scattata = true;
+      try {
+        stato.esito = await azione();
+      } catch (errore) {
+        stato.errore = errore;
+      }
+    },
+  };
+  return stato;
+}
+
+function disarma() {
+  dopoLaLettura = null;
+}
+
+/** I percorsi dei documenti restituiti dalle letture fatte mentre gira `lavoro`. */
+async function lettureDurante(lavoro) {
+  const letti = [];
+  registro = letti;
+  try {
+    await lavoro();
+  } finally {
+    registro = null;
+  }
+  return letti;
+}
+
+/** Un numero intero da un documento letto con `leggi`; `null` se il campo non c'è. */
+function intero(documento, campo) {
+  const valore = documento?.fields?.[campo]?.integerValue;
+  return valore === undefined ? null : Number(valore);
+}
+
+/** Un file nello Storage dell'emulatore, dal processo (come la pulizia, che ci scrive e cancella). */
+async function caricaFile(percorso, tipo) {
+  await getStorage().bucket(BUCKET).file(percorso).save(Buffer.from('prova'), { contentType: tipo });
+}
+
+async function esisteFile(percorso) {
+  const [esiste] = await getStorage().bucket(BUCKET).file(percorso).exists();
+  return esiste;
+}
+
+/** Perché una prova rossa non lasci file in un emulatore che resta acceso. */
+async function toglieFile(percorso) {
+  await getStorage().bucket(BUCKET).file(percorso).delete({ ignoreNotFound: true });
+}
 
 /**
  * Le stagioni **confermate** che la pagina pubblica `profiliPubblici/<slug>` mostra, come
@@ -1558,6 +1663,487 @@ await titolo('La pulizia dei numeri che non servono più (§9)');
   } else {
     ok('una pagina pubblica senza lavoratore dietro si toglie');
   }
+}
+
+// ---- L'aiuto per le gare ------------------------------------------------
+// Prima delle prove che lo usano, una che dice che l'aiuto fa quello che promette: se
+// smettesse di agganciarsi alla lettura, le gare qui sotto passerebbero senza essere mai
+// partite. (Le prove di gara controllano anche `scattata`, ma questo dice subito perché.)
+await titolo('L’aiuto per le gare scatta dopo la lettura, una volta sola');
+{
+  await azzera();
+  for (const id of ['a', 'b']) await scriviDocumento('aiuto', id, { n: { integerValue: '1' } });
+  await scriviDocumento('aiuto/a/figli', 'f', { n: { integerValue: '1' } });
+
+  const letture = [
+    ['una lettura di collezione', () => db.collection('aiuto').get()],
+    ['una query con una condizione', () => db.collection('aiuto').where('n', '==', 1).get()],
+    ['un gruppo di collezioni', () => db.collectionGroup('figli').get()],
+  ];
+  for (const [nome, leggiDaCapo] of letture) {
+    let fatte = 0;
+    const stato = inMezzo(
+      (percorso) => percorso.startsWith('aiuto/'),
+      async () => {
+        // L'azione legge anche lei: non deve far ripartire se stessa.
+        await db.collection('aiuto').get();
+        fatte += 1;
+      },
+    );
+    await leggiDaCapo();
+    const allaPrima = fatte;
+    await leggiDaCapo();
+    disarma();
+    if (stato.scattata && allaPrima === 1 && fatte === 1 && !stato.errore) {
+      ok(`${nome}: l’azione è già fatta quando il codice riprende, e non si ripete`);
+    } else {
+      no(
+        `${nome}: l’azione è già fatta quando il codice riprende, e non si ripete`,
+        `scattata ${stato.scattata}, fatta alla prima lettura ${allaPrima} volte e in tutto ${fatte}, errore ${stato.errore ?? 'nessuno'}`,
+      );
+    }
+  }
+}
+
+// ---- LF-2 · Il tetto di dieci conferme e l'account cancellato ----------
+// Il tetto della §8.4 conta le conferme delle ultime 24 ore per **uid** del responsabile.
+// L'uid è il suo accesso, e un accesso si cancella con `eliminaAccount` (che a chi non ha
+// un libretto non chiede niente) e si rifà con lo stesso numero: uid nuovo, conteggio a
+// zero, altre dieci conferme. Le conferme già date restano (sono dei lavoratori), ma non
+// contano più per chi le ha date. Il tetto deve seguire il **numero**, non l'accesso.
+await titolo('LF-2 · Il tetto di dieci conferme non si azzera cancellando l’account');
+{
+  await azzera();
+  const primo = await entra('348 610 0001');
+
+  // Dieci lavoratori diversi, in dieci strutture diverse, tutti allo stesso numero.
+  const daConfermare = async (i, responsabile) => {
+    const lavoratore = await preparaLavoratore(
+      `347 61${String(i).padStart(2, '0')} 001`,
+      `Tizio${i}`,
+      `inv-${i}`,
+    );
+    await creaStagione(lavoratore.uid, 'sua', { strutturaId: { stringValue: `struttura-${i}` } });
+    const esito = await chiama(
+      'creaRichiesta',
+      { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: responsabile.telefono },
+      lavoratore,
+    );
+    return esito.ok ? esito.risultato.token : null;
+  };
+
+  let date = 0;
+  for (let i = 0; i < 10; i += 1) {
+    const token = await daConfermare(i, primo);
+    const conferma = token ? await chiama('confermaStagione', { token, ...CONFERMA_VALIDA }, primo) : null;
+    if (conferma?.ok) date += 1;
+    else no(`la conferma numero ${i + 1} doveva passare`, conferma?.errore?.message ?? 'la richiesta non è partita');
+  }
+  if (date === 10) ok('dieci conferme date dallo stesso numero');
+
+  await deveRiuscire(
+    'chi non ha un libretto può cancellare l’account',
+    chiama('eliminaAccount', { conferma: 'ELIMINA' }, primo),
+  );
+  const secondo = await entra('348 610 0001');
+  if (secondo.uid !== primo.uid && secondo.telefono === primo.telefono) {
+    ok('rientrando con lo stesso numero l’accesso è nuovo (uid diverso)');
+  } else {
+    no('rientrando con lo stesso numero l’accesso è nuovo (uid diverso)', 'lo stesso uid: la prova non prova niente');
+  }
+
+  const undicesima = await daConfermare(10, secondo);
+  const dopo = undicesima
+    ? await chiama('confermaStagione', { token: undicesima, ...CONFERMA_VALIDA }, secondo)
+    : { ok: false, errore: { message: 'la richiesta non è partita' } };
+  if (dopo.ok) {
+    no(
+      'l’undicesima conferma in un giorno, dopo aver cancellato e rifatto l’accesso',
+      'è passata, e non doveva: il tetto contava l’uid del responsabile, non il suo numero',
+    );
+  } else {
+    ok(`l’undicesima conferma in un giorno, dopo aver cancellato e rifatto l’accesso → «${dopo.errore?.message}»`);
+  }
+
+  // Controllo: gli stessi dati, a un numero che non ha confermato niente, passano. Dice
+  // che il rifiuto qui sopra è del tetto e non di una richiesta scritta male.
+  const altro = await entra('348 610 0002');
+  const dodicesima = await daConfermare(11, altro);
+  await deveRiuscire(
+    'controllo: un altro numero, alla sua prima conferma, passa',
+    dodicesima
+      ? chiama('confermaStagione', { token: dodicesima, ...CONFERMA_VALIDA }, altro)
+      : Promise.resolve({ ok: false, errore: { message: 'la richiesta non è partita' } }),
+  );
+}
+
+// ---- LF-6 · Ruolo e competenze solo della §7, in creaRichiesta ----------
+// Le regole oggi lasciano scrivere qualunque testo (fino a 40 caratteri) come ruolo e
+// qualunque lista come competenze dichiarate. Una stagione scritta così — da un client
+// fatto a mano, prima che le regole si correggano — arriva a `creaRichiesta`, che ne fa
+// la «foto» che il responsabile legge nel messaggio e che la conferma poi rispetta. Il
+// server non deve fidarsi delle regole: ruolo e competenze fuori dalla §7 non partono.
+await titolo('LF-6 · Ruolo e competenze solo della §7, in creaRichiesta');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 640 0001', 'Mario', 'inv-1');
+  const ciro = await entra('348 640 0002');
+  await creaStagione(mario.uid, 'stellato', { ruolo: { stringValue: 'Pizzaiolo stellato' } });
+  await creaStagione(mario.uid, 'libera', {
+    strutturaId: { stringValue: 'struttura-2' },
+    ruolo: { stringValue: 'bar' },
+    competenzeDichiarate: {
+      arrayValue: { values: [{ stringValue: 'bar.caffetteria' }, { stringValue: 'Sommelier AIS' }] },
+    },
+  });
+  const invio = (stagioneId) => ({
+    stagioneId,
+    nomeResponsabile: 'Ciro',
+    telefonoResponsabile: ciro.telefono,
+  });
+
+  await deveFallire('un ruolo di testo libero («Pizzaiolo stellato»)', chiama('creaRichiesta', invio('stellato'), mario));
+
+  // Il ruolo è previsto, una competenza no: la richiesta parte, ma senza il testo libero.
+  const esito = await deveRiuscire(
+    'un ruolo previsto con una competenza di testo libero: la richiesta parte',
+    chiama('creaRichiesta', invio('libera'), mario),
+  );
+  if (esito.ok) {
+    const token = esito.risultato.token;
+    const foto = (await leggi(`richieste/${token}`))?.fields?.stagioneAlMomento?.mapValue?.fields;
+    const dichiarate = (foto?.competenzeDichiarate?.arrayValue?.values ?? []).map((v) => v.stringValue);
+    if (dichiarate.length === 1 && dichiarate[0] === 'bar.caffetteria') {
+      ok('nella richiesta restano solo le competenze della §7');
+    } else {
+      no(
+        'nella richiesta restano solo le competenze della §7',
+        `stagioneAlMomento.competenzeDichiarate: ${JSON.stringify(dichiarate)}, atteso ["bar.caffetteria"]`,
+      );
+    }
+
+    // Il responsabile non deve poter confermare il testo libero nemmeno chiedendolo: la
+    // conferma tiene solo ciò che era nel messaggio.
+    const conferma = await chiama(
+      'confermaStagione',
+      { token, ...CONFERMA_VALIDA, competenzeConfermate: ['bar.caffetteria', 'Sommelier AIS'] },
+      ciro,
+    );
+    const confermate = conferma.risultato?.competenzeConfermate ?? [];
+    if (conferma.ok && confermate.length === 1 && confermate[0] === 'bar.caffetteria') {
+      ok('il testo libero non arriva alla conferma');
+    } else {
+      no(
+        'il testo libero non arriva alla conferma',
+        conferma.ok ? `confermate: ${JSON.stringify(confermate)}` : `la conferma è stata rifiutata: ${conferma.errore?.message}`,
+      );
+    }
+  }
+}
+
+// ---- LF-7 · La pagina pubblica legge solo le stagioni che può mostrare --
+// `ricostruisci` (profilo.ts) legge **tutte** le stagioni del lavoratore a ogni scrittura
+// di una stagione, e poi ne scarta la maggior parte in memoria. Con le bozze, le scadute e
+// le non confermate che si accumulano, ogni modifica costa una lettura per stagione. La
+// pagina pubblica ne può mostrare solo due tipi: confermate e (se il lavoratore lo vuole)
+// in attesa. Il resto non deve essere letto affatto.
+await titolo('LF-7 · La pagina pubblica legge solo le stagioni che può mostrare');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 650 0001', 'Mario', 'inv-1');
+  const stato = (nome) => ({ stato: { stringValue: nome } });
+  await creaStagione(mario.uid, 'confermata', {
+    ...stato('confermata'),
+    competenzeConfermate: { arrayValue: { values: [{ stringValue: 'bar.caffetteria' }] } },
+    ruoloResponsabile: { stringValue: 'titolare' },
+    riprenderebbe: { booleanValue: true },
+  });
+  await creaStagione(mario.uid, 'attesa', { ...stato('in_attesa'), richiestaId: { stringValue: 'x' } });
+  for (const id of ['bozza1', 'bozza2', 'bozza3']) await creaStagione(mario.uid, id, stato('bozza'));
+  await creaStagione(mario.uid, 'respinta', stato('non_confermata'));
+  await creaStagione(mario.uid, 'vecchia', stato('scaduta'));
+
+  // Si lascia finire i trigger partiti dalle scritture qui sopra, poi si ricostruisce la
+  // pagina da qui, contando cosa legge.
+  await attendi(2000);
+  const letti = await lettureDurante(() => ricostruisciProfiloPubblico(mario.uid));
+  const sotto = `workers/${mario.uid}/stagioni/`;
+  const stagioniLette = letti.filter((p) => p.startsWith(sotto)).map((p) => p.slice(sotto.length));
+  const nonPubblicabili = stagioniLette.filter((id) => id !== 'confermata' && id !== 'attesa');
+  if (nonPubblicabili.length === 0) {
+    ok(`legge solo stagioni che può mostrare (${stagioniLette.length} su 7: ${stagioniLette.join(', ')})`);
+  } else {
+    no(
+      'legge solo le stagioni confermate o in attesa',
+      `ha letto ${stagioniLette.length} stagioni su 7; non pubblicabili: ${nonPubblicabili.join(', ')}`,
+    );
+  }
+
+  // Comportamento invariato: la pagina mostra la confermata, col ruolo di chi ha confermato.
+  const confermate = await confermatePubbliche('mario-0001', true);
+  const pagina = (await leggi('profiliPubblici/mario-0001'))?.fields ?? {};
+  const mostrate = (pagina.stagioni?.arrayValue?.values ?? []).map((s) => s.mapValue?.fields ?? {});
+  const una = mostrate[0] ?? {};
+  const competenza = pagina.competenze?.mapValue?.fields?.confermate?.mapValue?.fields?.['bar.caffetteria'];
+  if (
+    confermate.length === 1 &&
+    mostrate.length === 1 &&
+    una.struttura?.stringValue === 'Bar Somma' &&
+    una.ruoloResponsabile?.stringValue === 'titolare' &&
+    una.riprenderebbe?.booleanValue === true &&
+    competenza?.integerValue === '1' &&
+    pagina.riepilogo?.mapValue?.fields?.nConfermate?.integerValue === '1'
+  ) {
+    ok('la pagina pubblica mostra ancora la stagione confermata, col ruolo di chi ha confermato');
+  } else {
+    no('la pagina pubblica mostra ancora la stagione confermata', `mostrate ${mostrate.length}, confermate ${confermate.length}`);
+  }
+}
+
+// ---- LF-8 · La revoca in gara con la stagione cancellata ----------------
+// Il lavoratore cancella una stagione confermata: il trigger toglie la conferma e scala i
+// conteggi di struttura e responsabile (`dopoStagioneCancellata`). Se in quell'istante il
+// responsabile sta revocando la stessa conferma, `revocaConferma` l'ha già letta fuori
+// dalla transazione e dentro non la riguarda: scala i conteggi una seconda volta, e
+// struttura e responsabile finiscono a −1 (e il «responsabile noto» si calcola su numeri
+// sbagliati). Qui la cancellazione succede esattamente fra la lettura della revoca e la
+// sua transazione. Non si pretende che la revoca riesca o fallisca: solo che i conteggi
+// restino quelli veri.
+await titolo('LF-8 · La revoca in gara con la stagione cancellata');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 660 0001', 'Mario', 'inv-1');
+  const ciro = await entra('348 660 0002');
+  await scriviDocumento('strutture', 'struttura-1', { nConferme: { integerValue: '0' } });
+  await creaStagione(mario.uid, 'sua');
+  const richiesta = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: ciro.telefono },
+    mario,
+  );
+  const token = richiesta.risultato?.token;
+  await chiama('confermaStagione', { token, ...CONFERMA_VALIDA }, ciro);
+
+  const struttura = intero(await leggi('strutture/struttura-1'), 'nConferme');
+  const responsabile = intero(await leggi(`responsabili/${ciro.uid}`), 'nConferme');
+  if (struttura === 1 && responsabile === 1) {
+    ok('prima della gara la struttura e il responsabile hanno una conferma');
+  } else {
+    no('prima della gara la struttura e il responsabile hanno una conferma', `struttura ${struttura}, responsabile ${responsabile}`);
+  }
+
+  // La conferma sparisce appena la revoca l'ha letta, prima che parta la sua transazione.
+  const gara = inMezzo(
+    (percorso) => percorso.startsWith('conferme/'),
+    () => dopoStagioneCancellata(mario.uid, 'sua'),
+  );
+  await chiamaInsieme(revocaConferma, { token }, ciro);
+  disarma();
+
+  if (!gara.scattata || gara.errore) {
+    no(
+      'la cancellazione è scattata fra la lettura e la transazione della revoca',
+      gara.errore ? String(gara.errore) : 'la revoca non ha letto la conferma da una query: la prova non prova niente',
+    );
+  }
+  const rimaste = ((await leggi('conferme'))?.documents ?? []).length;
+  const strutturaDopo = intero(await leggi('strutture/struttura-1'), 'nConferme');
+  const responsabileDopo = intero(await leggi(`responsabili/${ciro.uid}`), 'nConferme');
+  if (rimaste === 0) ok('dopo la gara non resta nessuna conferma');
+  else no('dopo la gara non resta nessuna conferma', `${rimaste} conferme`);
+  if (strutturaDopo === 0 && responsabileDopo === 0) {
+    ok('dopo la gara i conteggi sono a zero, non sotto');
+  } else {
+    no(
+      'dopo la gara i conteggi sono a zero, non sotto',
+      `strutture/struttura-1.nConferme ${strutturaDopo}, responsabili/{uid}.nConferme ${responsabileDopo} (atteso 0 e 0: la conferma è stata scalata due volte)`,
+    );
+  }
+}
+
+// ---- LF-8 · La pulizia non riporta indietro una stagione rimandata ------
+// `sbloccaStagioniAppese` cerca le stagioni «in attesa», e per ognuna guarda se il link
+// che aspetta è ancora aperto; se non lo è la mette «scaduta». Ma la stagione l'ha letta
+// prima, e la scrive dopo, senza rileggerla: se nel mezzo il lavoratore la rimanda (un
+// link nuovo, la stagione di nuovo «in attesa» di quello), la pulizia ragiona sul link
+// vecchio e mette «scaduta» sopra il link nuovo. Il responsabile del link nuovo trova una
+// stagione che non lo aspetta più.
+await titolo('LF-8 · La pulizia non riporta indietro una stagione appena rimandata');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 670 0001', 'Mario', 'inv-1');
+  const ciro = await entra('348 670 0002');
+  // Una stagione appesa: «in attesa» di un link che la richiesta dà per chiuso.
+  await creaStagione(mario.uid, 'appesa', {
+    stato: { stringValue: 'in_attesa' },
+    richiestaId: { stringValue: 'link-vecchio' },
+  });
+  const giorniFa = (giorni) => new Date(Date.now() - giorni * 24 * 60 * 60 * 1000).toISOString();
+  await scriviDocumento('richieste', 'link-vecchio', {
+    workerUid: { stringValue: mario.uid },
+    stagioneId: { stringValue: 'appesa' },
+    nomeResponsabile: { stringValue: 'Ciro' },
+    telefonoResponsabile: { stringValue: ciro.telefono },
+    stato: { stringValue: 'scaduta' },
+    createdAt: { timestampValue: giorniFa(40) },
+    scadeIl: { timestampValue: giorniFa(10) },
+  });
+
+  // Il lavoratore rimanda la stagione nell'istante in cui la pulizia l'ha appena letta.
+  const gara = inMezzo(
+    (percorso) => percorso === `workers/${mario.uid}/stagioni/appesa`,
+    () =>
+      chiamaInsieme(
+        creaRichiesta,
+        { stagioneId: 'appesa', nomeResponsabile: 'Ciro', telefonoResponsabile: ciro.telefono },
+        mario,
+      ),
+  );
+  await eseguiPulizia();
+  disarma();
+
+  const rimandata = gara.esito;
+  if (!gara.scattata || gara.errore || !rimandata?.ok) {
+    no(
+      'il lavoratore ha rimandato la stagione mentre la pulizia la guardava',
+      gara.errore
+        ? String(gara.errore)
+        : !gara.scattata
+          ? 'la pulizia non ha letto la stagione dalla collectionGroup: la prova non prova niente'
+          : `creaRichiesta rifiutata: ${rimandata?.errore?.message}`,
+    );
+  } else {
+    const nuovo = rimandata.risultato.token;
+    const stagione = (await leggi(`workers/${mario.uid}/stagioni/appesa`))?.fields ?? {};
+    if (stagione.stato?.stringValue === 'in_attesa' && stagione.richiestaId?.stringValue === nuovo) {
+      ok('la stagione rimandata resta «in attesa» del link nuovo');
+    } else {
+      no(
+        'la stagione rimandata resta «in attesa» del link nuovo',
+        `stato «${stagione.stato?.stringValue}», richiestaId ${stagione.richiestaId?.stringValue === nuovo ? 'quello nuovo' : stagione.richiestaId?.stringValue}: ` +
+          'la pulizia ha ragionato sul link vecchio',
+      );
+    }
+    await deveRiuscire(
+      'il responsabile del link nuovo conferma',
+      chiama('confermaStagione', { token: nuovo, ...CONFERMA_VALIDA }, ciro),
+    );
+  }
+}
+
+// ---- LF-9 · Una segnalazione già gestita non conta per la sospensione ---
+// §8.5: due «non ha mai lavorato qui» sospendono il libretto, finché Mike non lo guarda.
+// Quando Mike l'ha guardato e ha tolto la sospensione, le due segnalazioni restano nel
+// database con `gestita: true`. Se poi arriva un solo «mai lavorato» nuovo, il conteggio
+// (che non guarda `gestita`) ne trova ancora due e il libretto viene sospeso di nuovo per
+// una segnalazione sola, e la pagina pubblica sparisce.
+await titolo('LF-9 · Una segnalazione già gestita non conta più per la sospensione');
+{
+  await azzera();
+  const mario = await preparaLavoratore('347 680 0001', 'Mario', 'inv-1');
+  await scriviDocumento('segnalazioni', 'vecchia', {
+    tipo: { stringValue: 'mai_lavorato' },
+    workerUid: { stringValue: mario.uid },
+    richiestaId: { stringValue: 'x' },
+    createdAt: { timestampValue: new Date().toISOString() },
+    gestita: { booleanValue: true },
+  });
+  await creaStagione(mario.uid, 'sua');
+  const ciro = await entra('348 680 0002');
+  const esito = await chiama(
+    'creaRichiesta',
+    { stagioneId: 'sua', nomeResponsabile: 'Ciro', telefonoResponsabile: ciro.telefono },
+    mario,
+  );
+
+  // Prima della segnalazione la pagina c'è (la scrive un trigger, in ritardo).
+  const pagina = async (aspetta) => {
+    const fine = Date.now() + aspetta;
+    for (;;) {
+      const p = await leggi('profiliPubblici/mario-0001');
+      if (p || Date.now() >= fine) return p;
+      await attendi(250);
+    }
+  };
+  if (await pagina(6000)) ok('prima della segnalazione la pagina pubblica c’è');
+  else no('prima della segnalazione la pagina pubblica c’è', 'non è stata scritta: la prova non prova niente');
+
+  await deveRiuscire(
+    'un «non ha mai lavorato qui» nuovo',
+    chiama('segnalaStagione', { token: esito.risultato?.token, motivo: 'mai_lavorato' }, ciro),
+  );
+  await attendi(1500);
+
+  if (await leggi(`sospensioni/${mario.uid}`)) {
+    no(
+      'una segnalazione nuova e una già gestita non sospendono il libretto',
+      'sospensioni/{uid} esiste: la segnalazione gestita è stata contata',
+    );
+  } else {
+    ok('una segnalazione nuova e una già gestita non sospendono il libretto');
+  }
+  if (await pagina(0)) ok('la pagina pubblica resta');
+  else no('la pagina pubblica resta', 'profiliPubblici/mario-0001 non c’è più');
+}
+
+// ---- LF-11 · Elimina l'account cancella sempre foto e CV ----------------
+// `eliminaAccount` cancella i file che il profilo indica (`fotoPath`, `cvPath`). Ma il
+// profilo può non indicarli più mentre i file ci sono ancora: l'app toglie il CV dal
+// profilo anche quando la cancellazione del file fallisce (`src/lib/privacy.ts`, il
+// `catch(() => undefined)` e poi `cvPath: null`). Chi poi chiede di cancellare tutto
+// si porta via il profilo, ma il PDF resta nello Storage per sempre. I percorsi sono
+// sempre `foto/{uid}` e `cv/{uid}`: si cancellano senza leggere il profilo.
+await titolo('LF-11 · Elimina l’account cancella sempre foto e CV');
+{
+  await azzera();
+  // Un lavoratore col profilo «pulito» e i file ancora nello Storage.
+  const orfano = await preparaLavoratore('347 690 0001', 'Orfano', 'inv-1');
+  // E uno col profilo che li indica: il caso che oggi funziona, e che dice che il bucket
+  // dove si caricano i file qui è lo stesso dove cancella `eliminaAccount`.
+  const normale = await preparaLavoratore('347 690 0002', 'Normale', 'inv-2');
+  await scriviCampi(`workers/${normale.uid}`, {
+    fotoPath: { stringValue: `foto/${normale.uid}` },
+    cvPath: { stringValue: `cv/${normale.uid}` },
+  });
+
+  const file = [orfano, normale].flatMap((l) => [
+    [`foto/${l.uid}`, 'image/png'],
+    [`cv/${l.uid}`, 'application/pdf'],
+  ]);
+  for (const [percorso, tipo] of file) await caricaFile(percorso, tipo);
+  const caricati = await Promise.all(file.map(([percorso]) => esisteFile(percorso)));
+  if (caricati.every(Boolean)) {
+    ok(`quattro file nello Storage dell’emulatore (${BUCKET})`);
+  } else {
+    no('quattro file nello Storage dell’emulatore', `caricati: ${JSON.stringify(caricati)}`);
+  }
+
+  await deveRiuscire('eliminare l’account di chi ha il profilo pulito', chiama('eliminaAccount', { conferma: 'ELIMINA' }, orfano));
+  await deveRiuscire('eliminare l’account di chi ha i percorsi nel profilo', chiama('eliminaAccount', { conferma: 'ELIMINA' }, normale));
+
+  // Controllo positivo: i file indicati nel profilo se ne vanno. Se restassero, il bucket
+  // dove ha caricato questa prova non sarebbe quello di `eliminaAccount`.
+  const normaleFoto = await esisteFile(`foto/${normale.uid}`);
+  const normaleCv = await esisteFile(`cv/${normale.uid}`);
+  if (!normaleFoto && !normaleCv) {
+    ok('controllo: foto e CV indicati nel profilo se ne vanno (il bucket è quello giusto)');
+  } else {
+    no(
+      'controllo: foto e CV indicati nel profilo se ne vanno',
+      `restano ${[normaleFoto && 'la foto', normaleCv && 'il CV'].filter(Boolean).join(' e ')} anche con i percorsi nel profilo: ` +
+        `il bucket ${BUCKET} non è quello di eliminaAccount, la prova non prova niente`,
+    );
+  }
+
+  const orfanoFoto = await esisteFile(`foto/${orfano.uid}`);
+  const orfanoCv = await esisteFile(`cv/${orfano.uid}`);
+  if (!orfanoFoto) ok('la foto che il profilo non indica più se ne va con l’account');
+  else no('la foto che il profilo non indica più se ne va con l’account', `foto/${orfano.uid} è ancora nello Storage`);
+  if (!orfanoCv) ok('il CV che il profilo non indica più se ne va con l’account');
+  else no('il CV che il profilo non indica più se ne va con l’account', `cv/${orfano.uid} è ancora nello Storage`);
+
+  // Un emulatore che resta acceso non deve tenersi i file di una prova rossa.
+  for (const [percorso] of file) await toglieFile(percorso);
 }
 
 // ---------------------------------------------------------------- risultato
