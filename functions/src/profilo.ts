@@ -82,7 +82,13 @@ async function ricostruisci(uid: string, slugPrecedente?: string): Promise<void>
     return;
   }
 
-  const stagioniSnap = await db.collection(`workers/${uid}/stagioni`).get();
+  // Solo le stagioni che la pagina può mostrare. Prima si leggevano tutte, bozze e scadute
+  // comprese, e ogni scrittura di una stagione costava una lettura per ogni stagione del
+  // libretto. L'indice su `stato` c'è già (`fieldOverrides`).
+  const stagioniSnap = await db
+    .collection(`workers/${uid}/stagioni`)
+    .where('stato', 'in', ['confermata', 'in_attesa'])
+    .get();
   const stagioni = stagioniSnap.docs
     .map((d) => d.data() as Stagione)
     .filter((s) => !s.nascosta)
