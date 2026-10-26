@@ -252,11 +252,12 @@ export const eliminaAccount = onCall(async (chiamata) => {
   const workerSnap = await db.doc(`workers/${uid}`).get();
   const worker = workerSnap.data() as Worker | undefined;
 
+  // Foto e CV si cancellano sempre ai loro percorsi (le regole non ne ammettono altri),
+  // senza chiederli al profilo: il profilo può non indicarli più mentre i file restano, per
+  // esempio un CV tolto dall'app con la cancellazione del file fallita (`src/lib/privacy.ts`).
   const bucket = getStorage().bucket();
   await Promise.all(
-    [worker?.fotoPath, worker?.cvPath]
-      .filter((p): p is string => typeof p === 'string')
-      .map((p) => bucket.file(p).delete().catch(() => undefined)),
+    [`foto/${uid}`, `cv/${uid}`].map((p) => bucket.file(p).delete({ ignoreNotFound: true }).catch(() => undefined)),
   );
 
   // Le richieste aperte muoiono con l'account: i link in giro smettono di funzionare.
