@@ -169,10 +169,25 @@ due lasciano aperto, e li ho chiusi uno alla volta dopo che una prova mi aveva s
 correzione che credevo bastasse. **Se sembrano superflui, non toccarli**: leggere i commenti
 sopra, che spiegano quale attacco copre ognuno.
 
-**Le richieste di un lavoratore si mettono in fila su `limiti/{uid}`.** `creaRichiesta`
-legge stagione, link aperti e tetto della §8.4 in una transazione che scrive anche quel
-documento, come `confermaStagione` con `responsabili/{uid}`. Non su `workers/{uid}`: ogni
-invio rifarebbe la pagina pubblica.
+**Le richieste di un lavoratore si mettono in fila su `limiti/{uid}`, le conferme di un
+numero su `limiti/{telefono}`.** `creaRichiesta` legge stagione, link aperti e tetto della
+§8.4 in una transazione che scrive anche quel documento. Non su `workers/{uid}`: ogni invio
+rifarebbe la pagina pubblica. Gli id non si scontrano, perché un uid non comincia con «+».
+
+**Il tetto di dieci conferme al giorno segue il numero, non l'accesso.** `confermaStagione`
+conta le `richieste` con quel `telefonoResponsabile` e `usataIl` nelle ultime 24 ore.
+`usataIl` lo scrive solo la conferma, non la segnalazione, e una revoca non lo toglie.
+Contando le conferme per uid, bastava cancellare l'account e rientrare con lo stesso numero
+per ripartire da zero (LF-2, 26/10). `limiti/{telefono}` ha il numero nell'id: se ne va
+insieme a `responsabili/{uid}`, in `eliminaAccount` e nella pulizia.
+
+**Gli id dei ruoli e delle competenze della §7 sono scritti in tre posti.** Sono in
+`src/data/ruoli.ts` (l'app), in `ruoliPrevisti()` e `competenzePreviste()` di
+`firestore.rules`, e in `functions/src/ruoli.ts`. Nessuno dei tre può importare gli altri.
+Chi aggiunge un ruolo o una competenza nell'app li aggiunge anche negli altri due: la prova
+«le tre copie degli id coincidono» di `npm test` diventa rossa finché non lo fa. Le regole
+controllano gli id solo su quello che cambia: una stagione salvata col testo libero prima
+del 26/10 si può ancora correggere e nascondere, ma non prende altro testo libero.
 
 **`verificatoAdmin` non si scrive mai a `false` in un merge.** Lo mette a mano Mike per i
 responsabili che conosce (PC4): un `set(..., {verificatoAdmin: false}, {merge: true})` in
@@ -192,15 +207,15 @@ macchina. Usare le equivalenti disponibili e dirlo, invece di annunciare skill n
 
 ## Le prove, e cosa guarda ognuna
 
-Al 20 ottobre, tutte verdi. Gli emulatori vogliono Java: sul Mac c'è quello di Android
+Al 27 ottobre, tutte verdi. Gli emulatori vogliono Java: sul Mac c'è quello di Android
 Studio (`export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`),
 e vanno avviati con `--project libretto-prova`: `npm run emulatori` prenderebbe il
 progetto vero da `.firebaserc`.
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # 83 prove sulle regole di sicurezza (74 Firestore + 9 Storage)
-npm run prova:rottura   # 80 casi, chiamando le funzioni a mano (anche le gare)
+npm test                # 94 prove sulle regole di sicurezza (85 Firestore + 9 Storage)
+npm run prova:rottura   # 109 casi, chiamando le funzioni a mano (anche le gare)
 npm run prova:flusso    # 29 passaggi in browser, tre finestre
 ```
 
@@ -212,6 +227,10 @@ Guardano tre cose **diverse**, e conviene sapere quale:
 - **`npm run prova:rottura`** attacca le Cloud Functions **senza passare
   dall'interfaccia**, come chi si è scritto il client a mano. Se un controllo esistesse solo
   nel frontend, questa prova lo scopre. Vuole emulatori avviati e funzioni compilate.
+  Le gare in una finestra stretta, tra «il codice ha letto» e «il codice scrive», non
+  si affidano al caso. `inMezzo` fa succedere l'altra mossa subito dopo una lettura di
+  `Query.get`, quindi la gara si riproduce a ogni giro. Non vede le letture dentro una
+  transazione né quelle di un documento singolo.
 - **`npm run prova:flusso`** fa il giro vero in browser con tre contesti separati:
   lavoratore, responsabile e un datore non collegato. Vuole anche `npm run dev`.
 

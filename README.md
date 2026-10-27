@@ -155,8 +155,8 @@ Nel log della pulizia (Cloud Functions → `pulizia` → Log) una riga dice quan
 
 ```sh
 npm run lint            # i tipi, anche quelli delle funzioni
-npm test                # le regole di sicurezza: 70 prove, sull'emulatore
-npm run prova:rottura   # gli 80 casi di rottura, chiamando le funzioni a mano
+npm test                # le regole di sicurezza: 94 prove, sull'emulatore
+npm run prova:rottura   # i 109 casi di rottura, chiamando le funzioni a mano
 npm run prova:flusso    # i 29 passaggi del flusso vero in un browser
 npm run prova           # rottura + flusso di seguito
 ```
