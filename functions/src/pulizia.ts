@@ -95,11 +95,13 @@ async function togliResponsabiliSenzaConferme(adesso: Timestamp): Promise<number
     const ultimaVolta = (r.data().updatedAt as Timestamp | undefined)?.toMillis() ?? 0;
     if (ultimaVolta > limite) continue;
     if (await haConferme(r.id)) continue;
-    await r.ref.delete();
     // Con lui se ne va il documento che metteva in fila le conferme del suo numero
-    // (`confermaStagione`), che ha il telefono nell'id.
+    // (`confermaStagione`), che ha il telefono nell'id. Prima di lui: se questa
+    // cancellazione fallisce, `responsabili/{uid}` resta e la notte dopo si riprova;
+    // nell'ordine inverso `limiti/{telefono}` restava senza più nessuno che lo ritrovasse.
     const telefono = r.data().telefono;
     if (telefonoValido(telefono)) await db.doc(`limiti/${telefono}`).delete();
+    await r.ref.delete();
     tolti += 1;
   }
   return tolti;

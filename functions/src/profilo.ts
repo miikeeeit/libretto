@@ -255,10 +255,11 @@ export const eliminaAccount = onCall(async (chiamata) => {
   // Foto e CV si cancellano sempre ai loro percorsi (le regole non ne ammettono altri),
   // senza chiederli al profilo: il profilo può non indicarli più mentre i file restano, per
   // esempio un CV tolto dall'app con la cancellazione del file fallita (`src/lib/privacy.ts`).
+  // Un file che non c'è non è un errore (`ignoreNotFound`); un errore vero invece ferma
+  // tutto qui, prima di aver cancellato altro, e chi ha chiesto di sparire riprova. Prima
+  // si ingoiava, e la foto restava leggibile senza più un account che la ritrovasse.
   const bucket = getStorage().bucket();
-  await Promise.all(
-    [`foto/${uid}`, `cv/${uid}`].map((p) => bucket.file(p).delete({ ignoreNotFound: true }).catch(() => undefined)),
-  );
+  await Promise.all([`foto/${uid}`, `cv/${uid}`].map((p) => bucket.file(p).delete({ ignoreNotFound: true })));
 
   // Le richieste aperte muoiono con l'account: i link in giro smettono di funzionare.
   const richieste = await db.collection('richieste').where('workerUid', '==', uid).get();
