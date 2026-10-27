@@ -136,8 +136,13 @@ Quel punto vale più di qualunque cosa tu possa aggiungere all'app.
 **Le segnalazioni.** Console → Firestore → `segnalazioni`. Se ce n'è una con
 `tipo: "mai_lavorato"`, qualcuno dice che una stagione non è vera: guarda chi e parla con
 tutte e due le persone prima di fare qualunque cosa. Dopo due segnalazioni il libretto viene
-sospeso da solo e la pagina pubblica sparisce (§8.5); per riattivarlo, cancella il documento
-in `sospensioni`.
+sospeso da solo e la pagina pubblica sparisce (§8.5). Per riattivarlo, in quest'ordine:
+1. sulle segnalazioni che hai guardato metti `gestita` a `true` (booleano). Contano solo
+   quelle ancora `false`: se le lasci così, al primo «mai lavorato» nuovo il libretto si
+   sospende di nuovo;
+2. cancella il documento in `sospensioni`;
+3. tocca una volta il profilo in `workers` (per esempio cambia `updatedAt`): la pagina
+   pubblica torna solo alla prossima scrittura del profilo o delle stagioni.
 
 **I numeri della §12.** Console → Firestore → `eventi`. Ogni documento ha un `tipo`: filtra
 per quello e guarda quanti sono.
