@@ -250,7 +250,6 @@ async function sbloccaStagioniAppese(): Promise<number> {
     .limit(MASSIMO_PER_GIRO)
     .get();
 
-  //
   // Stagione e richiesta si rileggono in una transazione: la stagione letta qui sopra può
   // essere già vecchia. Se il lavoratore la rimandava proprio adesso (link nuovo, di nuovo
   // «in attesa»), la pulizia ragionava sul link vecchio e metteva «scaduta» sopra quello
