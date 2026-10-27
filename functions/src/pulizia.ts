@@ -12,7 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { Timestamp } from 'firebase-admin/firestore';
-import { db } from './comune';
+import { db, telefonoValido } from './comune';
 import { aggiornaStatisticheConferme } from './statistiche';
 
 /** §9: le richieste chiuse si cancellano dopo 90 giorni. */
@@ -95,6 +95,12 @@ async function togliResponsabiliSenzaConferme(adesso: Timestamp): Promise<number
     const ultimaVolta = (r.data().updatedAt as Timestamp | undefined)?.toMillis() ?? 0;
     if (ultimaVolta > limite) continue;
     if (await haConferme(r.id)) continue;
+    // Con lui se ne va il documento che metteva in fila le conferme del suo numero
+    // (`confermaStagione`), che ha il telefono nell'id. Prima di lui: se questa
+    // cancellazione fallisce, `responsabili/{uid}` resta e la notte dopo si riprova;
+    // nell'ordine inverso `limiti/{telefono}` restava senza più nessuno che lo ritrovasse.
+    const telefono = r.data().telefono;
+    if (telefonoValido(telefono)) await db.doc(`limiti/${telefono}`).delete();
     await r.ref.delete();
     tolti += 1;
   }
@@ -137,6 +143,8 @@ async function togliAccessiInutili(adesso: Timestamp): Promise<number> {
       await cancellaFile(`foto/${uid}`);
       await cancellaFile(`cv/${uid}`);
       await db.doc(`responsabili/${uid}`).delete();
+      // Come sopra: il documento di fila delle sue conferme se ne va con `responsabili/{uid}`.
+      if (telefonoValido(utente.phoneNumber)) await db.doc(`limiti/${utente.phoneNumber}`).delete();
       await auth.deleteUser(uid);
       tolti += 1;
     }
@@ -244,17 +252,28 @@ async function sbloccaStagioniAppese(): Promise<number> {
     .limit(MASSIMO_PER_GIRO)
     .get();
 
+  // Stagione e richiesta si rileggono in una transazione: la stagione letta qui sopra può
+  // essere già vecchia. Se il lavoratore la rimandava proprio adesso (link nuovo, di nuovo
+  // «in attesa»), la pulizia ragionava sul link vecchio e metteva «scaduta» sopra quello
+  // nuovo, e il responsabile trovava una stagione che non lo aspettava più.
   let sbloccate = 0;
   for (const stagione of appese.docs) {
     const richiestaId = stagione.data().richiestaId;
     if (typeof richiestaId !== 'string') continue;
 
-    const richiesta = await db.doc(`richieste/${richiestaId}`).get();
-    const ancoraAperta = richiesta.exists && richiesta.data()?.stato === 'aperta';
-    if (ancoraAperta) continue;
+    const sbloccata = await db.runTransaction(async (tx) => {
+      const [ora, richiesta] = await Promise.all([
+        tx.get(stagione.ref),
+        tx.get(db.doc(`richieste/${richiestaId}`)),
+      ]);
+      const ancoraAppesa = ora.data()?.stato === 'in_attesa' && ora.data()?.richiestaId === richiestaId;
+      const ancoraAperta = richiesta.exists && richiesta.data()?.stato === 'aperta';
+      if (!ancoraAppesa || ancoraAperta) return false;
 
-    await stagione.ref.update({ stato: 'scaduta', updatedAt: FieldValue.serverTimestamp() });
-    sbloccate += 1;
+      tx.update(stagione.ref, { stato: 'scaduta', updatedAt: FieldValue.serverTimestamp() });
+      return true;
+    });
+    if (sbloccata) sbloccate += 1;
   }
   return sbloccate;
 }

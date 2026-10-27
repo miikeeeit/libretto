@@ -12,7 +12,7 @@ import { FieldValue, type WriteBatch } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { adesso, db, testoRichiesto } from './comune';
+import { adesso, db, telefonoValido, testoRichiesto } from './comune';
 import { dopoStagioneCancellata } from './stagioniCancellate';
 
 type Privacy = {
@@ -82,7 +82,13 @@ async function ricostruisci(uid: string, slugPrecedente?: string): Promise<void>
     return;
   }
 
-  const stagioniSnap = await db.collection(`workers/${uid}/stagioni`).get();
+  // Solo le stagioni che la pagina può mostrare. Prima si leggevano tutte, bozze e scadute
+  // comprese, e ogni scrittura di una stagione costava una lettura per ogni stagione del
+  // libretto. L'indice su `stato` c'è già (`fieldOverrides`).
+  const stagioniSnap = await db
+    .collection(`workers/${uid}/stagioni`)
+    .where('stato', 'in', ['confermata', 'in_attesa'])
+    .get();
   const stagioni = stagioniSnap.docs
     .map((d) => d.data() as Stagione)
     .filter((s) => !s.nascosta)
@@ -246,12 +252,14 @@ export const eliminaAccount = onCall(async (chiamata) => {
   const workerSnap = await db.doc(`workers/${uid}`).get();
   const worker = workerSnap.data() as Worker | undefined;
 
+  // Foto e CV si cancellano sempre ai loro percorsi (le regole non ne ammettono altri),
+  // senza chiederli al profilo: il profilo può non indicarli più mentre i file restano, per
+  // esempio un CV tolto dall'app con la cancellazione del file fallita (`src/lib/privacy.ts`).
+  // Un file che non c'è non è un errore (`ignoreNotFound`); un errore vero invece ferma
+  // tutto qui, prima di aver cancellato altro, e chi ha chiesto di sparire riprova. Prima
+  // si ingoiava, e la foto restava leggibile senza più un account che la ritrovasse.
   const bucket = getStorage().bucket();
-  await Promise.all(
-    [worker?.fotoPath, worker?.cvPath]
-      .filter((p): p is string => typeof p === 'string')
-      .map((p) => bucket.file(p).delete().catch(() => undefined)),
-  );
+  await Promise.all([`foto/${uid}`, `cv/${uid}`].map((p) => bucket.file(p).delete({ ignoreNotFound: true })));
 
   // Le richieste aperte muoiono con l'account: i link in giro smettono di funzionare.
   const richieste = await db.collection('richieste').where('workerUid', '==', uid).get();
@@ -284,6 +292,11 @@ export const eliminaAccount = onCall(async (chiamata) => {
   // che ha dato restano — sono il profilo di altre persone — ma senza nulla che le
   // riconduca a un numero, e con l'accesso cancellato l'uid è morto.
   await db.doc(`responsabili/${uid}`).delete().catch(() => undefined);
+  // E il documento che mette in fila le conferme del suo numero (`confermaStagione`): ha
+  // il telefono nell'id, e deve andarsene con `responsabili/{uid}`. Il tetto della §8.4
+  // non si azzera, perché conta le richieste usate, non questo documento.
+  const telefono = chiamata.auth?.token?.phone_number;
+  if (telefonoValido(telefono)) await db.doc(`limiti/${telefono}`).delete().catch(() => undefined);
 
   await db.doc(`sospensioni/${uid}`).delete().catch(() => undefined);
   await db.doc(`limiti/${uid}`).delete().catch(() => undefined);

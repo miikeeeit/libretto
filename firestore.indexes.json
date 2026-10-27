@@ -1,7 +1,7 @@
 {
   "indexes": [
     {
-      "comment": "§8.4: quante conferme ha fatto questo numero nelle ultime 24 ore.",
+      "comment": "Dal 26/10 non lo usa più nessuna query: il tetto della §8.4 conta le richieste usate dal numero (indice su richieste, telefonoResponsabile e usataIl). Resta qui perché toglierlo farebbe chiedere al deploy se cancellarlo.",
       "collectionGroup": "conferme",
       "queryScope": "COLLECTION",
       "fields": [
@@ -46,7 +46,22 @@
       ]
     },
     {
-      "comment": "§8.5: quante segnalazioni «mai lavorato qui» ha questo lavoratore.",
+      "comment": "§8.4: quante conferme ha fatto questo numero nelle ultime 24 ore, contando le richieste che ha usato per confermare (restano anche se cancella l'account o revoca).",
+      "collectionGroup": "richieste",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "telefonoResponsabile",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "usataIl",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Dal 26/10 non lo usa più nessuna query: la sospensione della §8.5 conta solo le segnalazioni non gestite (indice qui sotto, con gestita). Resta qui perché toglierlo farebbe chiedere al deploy se cancellarlo.",
       "collectionGroup": "segnalazioni",
       "queryScope": "COLLECTION",
       "fields": [
@@ -56,6 +71,25 @@
         },
         {
           "fieldPath": "tipo",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "§8.5: quante segnalazioni «mai lavorato qui» di questo lavoratore Mike non ha ancora gestito.",
+      "collectionGroup": "segnalazioni",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tipo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "gestita",
           "order": "ASCENDING"
         }
       ]

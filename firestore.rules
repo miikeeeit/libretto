@@ -18,6 +18,38 @@ service cloud.firestore {
       return autenticato() && request.auth.uid == uid;
     }
 
+    // I ruoli e le competenze della §7. È una copia di `src/data/ruoli.ts`, perché le
+    // regole non possono importare l'app; ce n'è un'altra in `functions/src/ruoli.ts`. La
+    // prova «le tre copie degli id coincidono» in `test/regole.test.mjs` le tiene
+    // allineate: se si aggiunge un ruolo o una competenza nell'app, va aggiunto anche qui.
+    function ruoliPrevisti() {
+      return [
+        'sala', 'bar', 'cucina', 'pizzaiolo', 'lavaggio', 'reception', 'housekeeping',
+        'spiaggia', 'animazione', 'cassa', 'commesso', 'responsabile'
+      ];
+    }
+
+    function competenzePreviste() {
+      return [
+        'generale.cassa', 'generale.haccp', 'generale.aperturaChiusura', 'generale.formazioneNuovi',
+        'generale.inglese', 'generale.tedesco', 'generale.francese', 'generale.spagnolo',
+        'sala.palmare', 'sala.rango', 'sala.picco', 'sala.banchetti', 'sala.vino',
+        'bar.caffetteria', 'bar.cocktail', 'bar.banco', 'bar.inventario',
+        'cucina.lineaCalda', 'cucina.lineaFredda', 'cucina.taglio', 'cucina.pasticceria',
+        'cucina.ritmo', 'cucina.ordini',
+        'pizzaiolo.impasto', 'pizzaiolo.forno', 'pizzaiolo.banco', 'pizzaiolo.taglio',
+        'lavaggio.ritmo', 'lavaggio.fineServizio', 'lavaggio.attrezzature',
+        'reception.checkin', 'reception.gestionale', 'reception.telefono',
+        'housekeeping.partenze', 'housekeeping.ritmo', 'housekeeping.areeComuni',
+        'housekeeping.lavanderia', 'housekeeping.biancheria',
+        'spiaggia.ombrelloni', 'spiaggia.salvataggio', 'spiaggia.chiosco', 'spiaggia.prenotazioni',
+        'animazione.miniclub', 'animazione.sport', 'animazione.serate', 'animazione.audioLuci',
+        'cassa.fondo',
+        'commesso.vendita', 'commesso.vetrine', 'commesso.magazzino',
+        'responsabile.turni', 'responsabile.reclami', 'responsabile.chiusure', 'responsabile.ordini'
+      ];
+    }
+
     // ---- Inviti (beta chiusa, decisione PC1 del 2026-09-21) -------------------
     // `get` è aperto perché il codice si controlla prima di mandare l'SMS, quando
     // ancora nessuno è collegato. Non è una falla: `list` è vietato, quindi i codici
@@ -211,9 +243,15 @@ service cloud.firestore {
 
         allow read: if proprietario(uid);
 
+        // Ruolo e competenze solo della §7. Prima passava qualunque testo, fino a 40
+        // caratteri: un client fatto a mano scriveva «Pizzaiolo stellato» o «Sommelier AIS»,
+        // e quel testo finiva nel messaggio al responsabile e poi, confermato, sulla pagina
+        // pubblica. Non sta in `formaStagione()` di proposito: vedi l'update.
         allow create: if proprietario(uid)
           && formaStagione(request.resource.data)
-          && nienteCampiDiFiducia(request.resource.data);
+          && nienteCampiDiFiducia(request.resource.data)
+          && request.resource.data.ruolo in ruoliPrevisti()
+          && request.resource.data.competenzeDichiarate.hasOnly(competenzePreviste());
 
         // Su una stagione confermata si può fare **solo** una cosa: nasconderla.
         // Senza questo, si poteva riportarla in bozza tenendosi addosso le competenze
@@ -238,6 +276,17 @@ service cloud.firestore {
               // Altrimenti chi conosce il link di un altro poteva metterlo su una sua
               // stagione e farlo revocare da creaRichiesta (trovato il 2026-10-02).
               && request.resource.data.richiestaId == null
+              // §7, solo su quello che cambia: il ruolo resta quello di prima o diventa uno
+              // previsto, e le competenze aggiunte sono previste. Così una stagione salvata
+              // col testo libero prima di questa regola resta correggibile, ma non prende
+              // altro testo libero. Nascondere invece non chiede niente (`soloNascondere()`):
+              // deve funzionare sempre, anche su una stagione col testo libero (§1, regola 3).
+              // `get`: una stagione scritta a mano dalla console può non avere i campi.
+              && (request.resource.data.ruolo == resource.data.get('ruolo', null)
+                  || request.resource.data.ruolo in ruoliPrevisti())
+              && request.resource.data.competenzeDichiarate
+                  .removeAll(resource.data.get('competenzeDichiarate', []))
+                  .hasOnly(competenzePreviste())
             )
           );
 

@@ -16,6 +16,7 @@ import {
   telefonoValido,
   testoRichiesto,
 } from './comune';
+import { COMPETENZE_PREVISTE, RUOLI_PREVISTI } from './ruoli';
 
 /** 32 caratteri casuali, che sono anche l'id del documento (§6). */
 function generaToken(): string {
@@ -85,7 +86,8 @@ export const creaRichiesta = onCall(async (richiesta) => {
   const stagioneRef = db.doc(`workers/${workerUid}/stagioni/${stagioneId}`);
   // Un documento per lavoratore, che ogni richiesta legge e scrive: così le richieste
   // dello stesso lavoratore si mettono in fila, come le conferme di un numero con
-  // `responsabili/{uid}`. Non `workers/{uid}`, che riscriverebbe la pagina pubblica a ogni
+  // `limiti/{telefono}` (stessa collezione: gli id non si scontrano, perché un uid non
+  // comincia con «+»). Non `workers/{uid}`, che riscriverebbe la pagina pubblica a ogni
   // invio. Dal client non si legge né si scrive (`limiti` non ha regole sue).
   const limiteRef = db.doc(`limiti/${workerUid}`);
   const token = generaToken();
@@ -117,6 +119,14 @@ export const creaRichiesta = onCall(async (richiesta) => {
 
     if (stagione.stato === 'confermata') {
       throw new HttpsError('failed-precondition', 'Questa stagione è già confermata.');
+    }
+
+    // §7: il server non si fida delle regole. Una stagione scritta da un client fatto a
+    // mano prima che le regole chiedessero i ruoli previsti può avere un ruolo di testo
+    // libero, e da qui diventerebbe la foto che il responsabile legge nel messaggio e che
+    // la conferma rispetta.
+    if (!RUOLI_PREVISTI.includes(stagione.ruolo)) {
+      throw new HttpsError('invalid-argument', 'Questo ruolo non è fra quelli previsti.');
     }
 
     // Qui dentro e non prima: struttura e periodo sono quelli della stagione appena letta,
@@ -178,7 +188,10 @@ export const creaRichiesta = onCall(async (richiesta) => {
         ruolo: stagione.ruolo,
         dal: stagione.dal,
         al: stagione.al,
-        competenzeDichiarate: stagione.competenzeDichiarate ?? [],
+        // Solo le competenze della §7, e in silenzio: una di testo libero, o con un id
+        // vecchio che l'app non mostra più, non deve bloccare l'invio. La conferma tiene
+        // già solo quello che era nel messaggio, quindi il resto non si può confermare.
+        competenzeDichiarate: (stagione.competenzeDichiarate ?? []).filter((c) => COMPETENZE_PREVISTE.includes(c)),
       },
       createdAt: adesso(),
       scadeIl: fraGiorni(GIORNI_SCADENZA),
